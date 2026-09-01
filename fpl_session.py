@@ -79,6 +79,7 @@ class FPLSession:
 
         # Use a wrapper HTTP client that injects tokens via a token provider.
         from fpl_draft.http import FplHttpClient
+        from fpl_draft.auth import BrowserAuth
 
         session = requests.Session()
 
@@ -95,8 +96,13 @@ class FPLSession:
             }
         )
 
+        # Create an auth adapter that currently delegates back to this
+        # session's authentication methods. This allows future extraction
+        # of Playwright/browser logic into `fpl_draft.auth`.
+        self.auth = BrowserAuth(self)
+
         self.http = FplHttpClient(
-            token_provider=self._ensure_authenticated,
+            token_provider=self.auth.ensure_authenticated,
             session=session,
         )
 
