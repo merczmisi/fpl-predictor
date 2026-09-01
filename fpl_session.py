@@ -7,6 +7,11 @@ from typing import Any
 import pandas as pd
 
 import requests
+from fpl_draft.features import (
+    compute_base_points,
+    apply_fdr_multiplier,
+    compute_expected_points_from_df,
+)
 from playwright.sync_api import (
     BrowserContext,
     Page,
@@ -72,9 +77,12 @@ class FPLSession:
         self.profile_dir = Path(profile_dir).expanduser()
         self.headless = headless
 
-        self.http = requests.Session()
+        # Use a wrapper HTTP client that injects tokens via a token provider.
+        from fpl_draft.http import FplHttpClient
 
-        self.http.headers.update(
+        session = requests.Session()
+
+        session.headers.update(
             {
                 "Accept": "application/json",
                 "User-Agent": (
@@ -85,6 +93,11 @@ class FPLSession:
                     "Version/26.3.1 Safari/605.1.15"
                 ),
             }
+        )
+
+        self.http = FplHttpClient(
+            token_provider=self._ensure_authenticated,
+            session=session,
         )
 
         self._playwright: Playwright | None = None
@@ -1090,34 +1103,24 @@ class FPLSession:
 
     def get_player_ids(
         self,
-        entry_id: int, 
-        event_id: int
+        entry_id: int,
+        event_id: int,
     ):
-
-        url = (
-            f"{self.DRAFT_API_URL}"
-            f"/api/entry/{entry_id}"
-            f"/event/{event_id}"
+        return (
+            __import__("fpl_draft.api", fromlist=["get_player_ids"])  # lazy import
+            .get_player_ids(self, entry_id, event_id)
         )
-
-        response = self.get(url)
-        response.raise_for_status()
-
-        return [pick["element"] for pick in response.json()["picks"]]
 
     # Get next match difficulty for each player
     def get_next_match_difficulty(
-            self,
-            player_id
-        ):
-        url = f'https://draft.premierleague.com/api/element-summary/{player_id}'
-        url = (
-            f"{self.DRAFT_API_URL}"
-            f"/api/element-summary/{player_id}"
+        self,
+        player_id: int,
+    ):
+        # Delegate to API wrapper which uses the `self` client's `.get`.
+        return (
+            __import__("fpl_draft.api", fromlist=["get_next_match_difficulty"])  # lazy import
+            .get_next_match_difficulty(self, player_id)
         )
-        data = requests.get(url).json()
-        
-        return data['fixtures'][0]['difficulty']
 
     def get_bootstrap_static(self):
         """
@@ -1185,62 +1188,18 @@ class FPLSession:
         )
 
         # ------------------------------------------------------------
-        # Calculate base points
+        # Calculate base points + fixture adjustments + expected points
+        # (extracted into pure functions for testability)
         # ------------------------------------------------------------
 
-        selected["base_points"] = (
-            0.6 * selected["form"] +
-            0.4 * selected["points_per_game"]
-        )
-
-        # ------------------------------------------------------------
-        # Get next fixture difficulty
-        # ------------------------------------------------------------
+        selected = compute_base_points(selected)
 
         selected["next_match_difficulty"] = selected["id"].apply(
             self.get_next_match_difficulty
         )
 
-        # ------------------------------------------------------------
-        # FDR multipliers
-        # ------------------------------------------------------------
+        selected = apply_fdr_multiplier(selected)
 
-        fdr_multiplier = {
-            1: 1.15,
-            2: 1.08,
-            3: 1.00,
-            4: 0.92,
-            5: 0.85,
-        }
-
-        selected["fdr_multiplier"] = (
-            selected["next_match_difficulty"]
-            .map(fdr_multiplier)
-        )
-
-        # ------------------------------------------------------------
-        # Fixture-adjusted points
-        # ------------------------------------------------------------
-
-        selected["fixture_adjusted_points"] = (
-            selected["base_points"] *
-            selected["fdr_multiplier"]
-        )
-
-        selected["fixture_adjusted_points"] = (
-            selected["fixture_adjusted_points"]
-            .round(2)
-        )
-
-        # ------------------------------------------------------------
-        # Expected points
-        # ------------------------------------------------------------
-
-        selected["expected_points"] = (
-            selected["fixture_adjusted_points"] *
-            selected["chance_of_playing_next_round"]
-                .fillna(100) /
-            100
-        ).round(2)
+        selected = compute_expected_points_from_df(selected)
 
         return selected

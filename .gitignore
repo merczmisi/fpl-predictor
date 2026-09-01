@@ -1,0 +1,53 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Pyright / Mypy cache
+.mypy_cache/
+
+# tox
+.tox/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+
+# Database files
+*.sqlite3
+*.db
+
+# Wheel / metadata
+*.whl
+
+# Test artifacts
+htmlcov/
+coverage.xml
