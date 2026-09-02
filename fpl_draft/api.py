@@ -5,8 +5,8 @@ that returns a `requests.Response`-like object with `raise_for_status()` and
 `json()` methods. They are intentionally thin so they can be unit-tested
 with small stubs.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 from typing import Any
 
 
@@ -23,6 +23,17 @@ def get_my_team(client: Any, entry_id: int) -> dict:
 
 def get_player_ids(client: Any, entry_id: int, event_id: int) -> list[int]:
     url = f"{DRAFT_API_URL}/api/entry/{entry_id}/event/{event_id}"
+    response = client.get(url)
+    response.raise_for_status()
+
+    body = response.json()
+
+    picks = body.get("picks", [])
+
+    return [pick.get("element") for pick in picks]
+
+def get_my_team(client: Any, entry_id: int) -> list[int]:
+    url = f"{DRAFT_API_URL}/api/entry/{entry_id}/my-team"
     response = client.get(url)
     response.raise_for_status()
 

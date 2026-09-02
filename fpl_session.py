@@ -296,6 +296,15 @@ class FPLSession:
             .get_player_ids(self, entry_id, event_id)
         )
 
+    def get_my_team(
+        self,
+        entry_id: int
+    ):
+        return (
+            __import__("fpl_draft.api", fromlist=["get_my_team"])  # lazy import
+            .get_my_team(self, entry_id)
+        )
+
     # Get next match difficulty for each player
     def get_next_match_difficulty(
         self,
@@ -331,7 +340,7 @@ class FPLSession:
         """
 
         # ------------------------------------------------------------
-        # Get player IDs
+        # Get player IDs for the event
         # ------------------------------------------------------------
 
         player_ids = self.get_player_ids(

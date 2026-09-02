@@ -6,7 +6,9 @@ fpl = FPLSession(
 )
 
 try:
-    selected = fpl.get_expected_points(299995, 2)
+    selected = fpl.get_expected_points(299995, 3)
+
+    print(selected)
     print(selected[
         [
             'id',
