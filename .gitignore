@@ -56,3 +56,6 @@ pip-wheel-metadata/
 # Test artifacts
 htmlcov/
 coverage.xml
+
+# Mac
+.DS_Store
