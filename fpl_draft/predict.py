@@ -57,3 +57,43 @@ def compute_expected_points_for_entry(
     selected = compute_expected_points_from_df(selected)
 
     return selected
+
+
+def compute_expected_points_for_entry_from_my_team(
+    client: Any, entry_id: int,
+) -> pd.DataFrame:
+    """Compute expected points for an entry using the persistent `my-team`.
+
+    - Fetch player ids from the entry's `my-team` payload (no event id).
+    - Fetch `bootstrap-static` and select the players in the same order.
+    - Compute base points, apply FDR multipliers, and final expected points.
+    """
+
+    player_ids = api.get_my_team_ids(client, entry_id)
+
+    data = api.get_bootstrap_static(client)
+
+    players = pd.json_normalize(data["elements"])
+
+    selected = players.set_index("id").loc[player_ids].reset_index()
+
+    # Ensure numeric columns
+    selected["form"] = pd.to_numeric(selected["form"], errors="coerce")
+    selected["points_per_game"] = pd.to_numeric(
+        selected["points_per_game"], errors="coerce"
+    )
+    selected["chance_of_playing_next_round"] = pd.to_numeric(
+        selected["chance_of_playing_next_round"], errors="coerce"
+    )
+
+    selected = compute_base_points(selected)
+
+    selected["next_match_difficulty"] = selected["id"].apply(
+        lambda pid: api.get_next_match_difficulty(client, int(pid))
+    )
+
+    selected = apply_fdr_multiplier(selected)
+
+    selected = compute_expected_points_from_df(selected)
+
+    return selected

@@ -64,12 +64,31 @@ def save_league_history(df: pd.DataFrame, db_path: str | Path = DEFAULT_DB_PATH)
         _ensure_schema(conn)
         payload = df[required].copy()
         payload = payload.where(pd.notna(payload), None)
-        payload.to_sql(
-            "league_history",
-            conn,
-            if_exists="append",
-            index=False,
-        )
+
+        sql = """
+            INSERT INTO league_history (
+                league_id,
+                league_name,
+                gameweek,
+                entry_id,
+                entry_name,
+                position,
+                total,
+                points_for,
+                points_against
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(league_id, gameweek, entry_id)
+            DO UPDATE SET
+                league_name = excluded.league_name,
+                entry_name = excluded.entry_name,
+                position = excluded.position,
+                total = excluded.total,
+                points_for = excluded.points_for,
+                points_against = excluded.points_against
+        """
+
+        rows = [tuple(row) for row in payload.itertuples(index=False, name=None)]
+        conn.executemany(sql, rows)
         conn.commit()
     finally:
         conn.close()
@@ -93,3 +112,19 @@ def load_league_history(league_id: int, db_path: str | Path = DEFAULT_DB_PATH) -
         conn.close()
 
     return df
+
+
+def load_league_history_pivot(
+    league_id: int,
+    db_path: str | Path = DEFAULT_DB_PATH,
+) -> pd.DataFrame:
+    """Return the league-history table pivoted for charting.
+
+    Rows are gameweeks; columns are entry names; values are positions.
+    """
+    df = load_league_history(league_id, db_path=db_path)
+    if df.empty:
+        return pd.DataFrame()
+
+    pivot = df.pivot(index="gameweek", columns="entry_name", values="position").sort_index()
+    return pivot

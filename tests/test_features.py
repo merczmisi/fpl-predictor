@@ -6,7 +6,7 @@ from fpl_draft.features import (
     compute_expected_points_from_df,
     normalize_league_details,
 )
-from fpl_draft.storage import save_league_history, load_league_history
+from fpl_draft.storage import save_league_history, load_league_history, load_league_history_pivot
 
 
 def test_normalize_league_details():
@@ -70,11 +70,13 @@ def test_save_and_load_league_history(tmp_path):
 
     df = normalize_league_details(payload)
     save_league_history(df, str(db_path))
+    save_league_history(df, str(db_path))
     loaded = load_league_history(55729, str(db_path))
 
     assert loaded.loc[loaded.entry_id == 293299, "position"].iloc[0] == 1
     assert loaded.loc[loaded.entry_id == 293299, "entry_name"].iloc[0] == "Alpha"
     assert loaded["gameweek"].nunique() == 1
+    assert len(loaded) == 2
     assert set(loaded.columns) == {
         "league_id",
         "league_name",
@@ -86,6 +88,11 @@ def test_save_and_load_league_history(tmp_path):
         "points_for",
         "points_against",
     }
+
+    pivot = load_league_history_pivot(55729, str(db_path))
+    assert list(pivot.index) == [3]
+    assert set(pivot.columns) == {"Alpha", "Beta"}
+    assert pivot.loc[3, "Alpha"] == 1
 
 
 def test_feature_pipeline_simple():

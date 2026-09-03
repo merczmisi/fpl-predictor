@@ -364,3 +364,14 @@ class FPLSession:
         return __import__(
             "fpl_draft.predict", fromlist=["compute_expected_points_for_entry"]
         ).compute_expected_points_for_entry(self, entry_id, event_id)
+        
+    def get_expected_points_from_my_team(
+        self,
+        entry_id: int
+    ):
+        """Delegate expected points computation to the `predict` orchestrator."""
+
+        # Lazy import to avoid circular imports during module import time.
+        return __import__(
+            "fpl_draft.predict", fromlist=["compute_expected_points_for_entry_from_my_team"]
+        ).compute_expected_points_for_entry_from_my_team(self, entry_id)
