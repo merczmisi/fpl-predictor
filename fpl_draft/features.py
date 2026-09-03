@@ -23,15 +23,28 @@ def normalize_league_details(payload: dict) -> pd.DataFrame:
                 "entry_name",
                 "position",
                 "total",
-                "matches_played",
+                "points_for",
+                "points_against",
             ]
         )
 
-    entry_name_by_id = {}
+    entry_meta_by_internal_id = {}
     for entry in league_entries:
-        entry_id = entry.get("entry_id")
-        if entry_id is not None:
-            entry_name_by_id[int(entry_id)] = entry.get("entry_name")
+        public_entry_id = entry.get("entry_id")
+        internal_id = entry.get("id")
+        entry_name = entry.get("entry_name")
+
+        if public_entry_id is not None:
+            entry_meta_by_internal_id[int(public_entry_id)] = {
+                "entry_name": entry_name,
+                "entry_id": int(public_entry_id),
+            }
+
+        if internal_id is not None:
+            entry_meta_by_internal_id[int(internal_id)] = {
+                "entry_name": entry_name,
+                "entry_id": int(public_entry_id) if public_entry_id is not None else int(internal_id),
+            }
 
     rows = []
     gameweek = (
@@ -42,25 +55,36 @@ def normalize_league_details(payload: dict) -> pd.DataFrame:
     )
 
     for item in standings:
-        entry_id = item.get("league_entry") or item.get("entry_id")
-        if entry_id is None:
+        standing_entry_id = item.get("league_entry") or item.get("entry_id")
+        if standing_entry_id is None:
             continue
 
-        entry_id = int(entry_id)
+        standing_entry_id = int(standing_entry_id)
+        entry_meta = entry_meta_by_internal_id.get(standing_entry_id) or {}
+
+        entry_name = (
+            entry_meta.get("entry_name")
+            or item.get("entry_name")
+            or item.get("league_entry_name")
+        )
+        resolved_entry_id = (
+            entry_meta.get("entry_id")
+            or item.get("entry_id")
+            or item.get("league_entry")
+            or standing_entry_id
+        )
+
         rows.append(
             {
                 "league_id": league.get("id"),
                 "league_name": league.get("name"),
                 "gameweek": gameweek,
-                "entry_id": entry_id,
-                "entry_name": (
-                    entry_name_by_id.get(entry_id)
-                    or item.get("entry_name")
-                    or item.get("league_entry_name")
-                ),
+                "entry_id": int(resolved_entry_id),
+                "entry_name": entry_name,
                 "position": item.get("rank"),
                 "total": item.get("total"),
-                "matches_played": item.get("matches_played"),
+                "points_for": item.get("points_for"),
+                "points_against": item.get("points_against"),
             }
         )
 
@@ -74,7 +98,8 @@ def normalize_league_details(payload: dict) -> pd.DataFrame:
         "entry_name",
         "position",
         "total",
-        "matches_played",
+        "points_for",
+        "points_against",
     ]
 
     for col in required:
