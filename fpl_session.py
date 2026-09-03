@@ -339,6 +339,19 @@ class FPLSession:
         response.raise_for_status()
         return response.json()
 
+    def sync_league_history(
+        self,
+        league_id: int,
+        db_path: str | Path = "~/.fpl/league_history.sqlite",
+    ):
+        """Fetch a league standings snapshot, normalize it, and persist it."""
+        from fpl_draft.features import normalize_league_details
+        from fpl_draft.storage import save_league_history
+
+        payload = self.get_league_details(league_id)
+        df = normalize_league_details(payload)
+        save_league_history(df, db_path=db_path)
+        return df
 
     def get_expected_points(
         self,
