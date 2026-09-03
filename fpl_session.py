@@ -335,65 +335,9 @@ class FPLSession:
         entry_id: int,
         event_id: int,
     ):
-        """
-        Calculate expected points for all players in a user's team.
-        """
+        """Delegate expected points computation to the `predict` orchestrator."""
 
-        # ------------------------------------------------------------
-        # Get player IDs for the event
-        # ------------------------------------------------------------
-
-        player_ids = self.get_player_ids(
-            entry_id,
-            event_id,
-        )
-
-        # ------------------------------------------------------------
-        # Get player data
-        # ------------------------------------------------------------
-
-        data = self.get_bootstrap_static()
-
-        players = pd.json_normalize(data["elements"])
-
-        selected = (
-            players.set_index("id")
-                   .loc[player_ids]
-                   .reset_index()
-        )
-
-        # ------------------------------------------------------------
-        # Convert relevant columns to numbers
-        # ------------------------------------------------------------
-
-        selected["form"] = pd.to_numeric(
-            selected["form"],
-            errors="coerce",
-        )
-
-        selected["points_per_game"] = pd.to_numeric(
-            selected["points_per_game"],
-            errors="coerce",
-        )
-
-        selected["chance_of_playing_next_round"] = pd.to_numeric(
-            selected["chance_of_playing_next_round"],
-            errors="coerce",
-        )
-
-        # ------------------------------------------------------------
-        # Calculate base points + fixture adjustments + expected points
-        # (extracted into pure functions for testability)
-        # ------------------------------------------------------------
-
-        selected = compute_base_points(selected)
-
-        selected["next_match_difficulty"] = selected["id"].apply(
-            self.get_next_match_difficulty
-        )
-
-        selected = apply_fdr_multiplier(selected)
-
-        selected = compute_expected_points_from_df(selected)
-
-        return selected
+        # Lazy import to avoid circular imports during module import time.
+        return __import__(
+            "fpl_draft.predict", fromlist=["compute_expected_points_for_entry"]
+        ).compute_expected_points_for_entry(self, entry_id, event_id)
