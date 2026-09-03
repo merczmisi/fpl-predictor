@@ -4,7 +4,38 @@ from fpl_draft.features import (
     compute_base_points,
     apply_fdr_multiplier,
     compute_expected_points_from_df,
+    normalize_league_details,
 )
+
+
+def test_normalize_league_details():
+    payload = {
+        "league": {"id": 55729, "name": "Test League", "current_event": 3},
+        "league_entries": [
+            {"entry_id": 293299, "entry_name": "Alpha"},
+            {"entry_id": 299263, "entry_name": "Beta"},
+        ],
+        "standings": [
+            {"league_entry": 293299, "rank": 1, "total": 61, "matches_played": 3},
+            {"league_entry": 299263, "rank": 2, "total": 58, "matches_played": 3},
+        ],
+    }
+
+    df = normalize_league_details(payload)
+
+    assert list(df.columns) == [
+        "league_id",
+        "league_name",
+        "gameweek",
+        "entry_id",
+        "entry_name",
+        "position",
+        "total",
+        "matches_played",
+    ]
+    assert df.loc[df.entry_id == 293299, "position"].iloc[0] == 1
+    assert df.loc[df.entry_id == 293299, "gameweek"].iloc[0] == 3
+    assert df.loc[df.entry_id == 299263, "entry_name"].iloc[0] == "Beta"
 
 
 def test_feature_pipeline_simple():

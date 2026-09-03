@@ -3,6 +3,87 @@ from typing import Dict
 import pandas as pd
 
 
+def normalize_league_details(payload: dict) -> pd.DataFrame:
+    """Convert a draft league-details payload into a tidy standings DataFrame.
+
+    The returned rows are one per league participant for the current gameweek,
+    with columns that map directly to a position-over-time chart.
+    """
+    league = payload.get("league") or {}
+    league_entries = payload.get("league_entries") or []
+    standings = payload.get("standings") or []
+
+    if not standings and not league_entries:
+        return pd.DataFrame(
+            columns=[
+                "league_id",
+                "league_name",
+                "gameweek",
+                "entry_id",
+                "entry_name",
+                "position",
+                "total",
+                "matches_played",
+            ]
+        )
+
+    entry_name_by_id = {}
+    for entry in league_entries:
+        entry_id = entry.get("entry_id")
+        if entry_id is not None:
+            entry_name_by_id[int(entry_id)] = entry.get("entry_name")
+
+    rows = []
+    gameweek = (
+        league.get("current_event")
+        or league.get("start_event")
+        or league.get("event")
+        or 1
+    )
+
+    for item in standings:
+        entry_id = item.get("league_entry") or item.get("entry_id")
+        if entry_id is None:
+            continue
+
+        entry_id = int(entry_id)
+        rows.append(
+            {
+                "league_id": league.get("id"),
+                "league_name": league.get("name"),
+                "gameweek": gameweek,
+                "entry_id": entry_id,
+                "entry_name": (
+                    entry_name_by_id.get(entry_id)
+                    or item.get("entry_name")
+                    or item.get("league_entry_name")
+                ),
+                "position": item.get("rank"),
+                "total": item.get("total"),
+                "matches_played": item.get("matches_played"),
+            }
+        )
+
+    df = pd.DataFrame(rows)
+
+    required = [
+        "league_id",
+        "league_name",
+        "gameweek",
+        "entry_id",
+        "entry_name",
+        "position",
+        "total",
+        "matches_played",
+    ]
+
+    for col in required:
+        if col not in df.columns:
+            df[col] = None
+
+    return df[required]
+
+
 def compute_base_points(df: pd.DataFrame) -> pd.DataFrame:
     """Compute `base_points` = 0.6*form + 0.4*points_per_game.
 
