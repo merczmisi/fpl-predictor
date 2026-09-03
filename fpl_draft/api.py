@@ -32,7 +32,7 @@ def get_player_ids(client: Any, entry_id: int, event_id: int) -> list[int]:
 
     return [pick.get("element") for pick in picks]
 
-def get_my_team(client: Any, entry_id: int) -> list[int]:
+def get_my_team_ids(client: Any, entry_id: int) -> list[int]:
     url = f"{DRAFT_API_URL}/api/entry/{entry_id}/my-team"
     response = client.get(url)
     response.raise_for_status()
@@ -70,3 +70,11 @@ def get_next_match_difficulty(client: Any, player_id: int) -> int | None:
     first = fixtures[0]
 
     return first.get("difficulty")
+
+
+def get_league_details(client: Any, league_id: int) -> dict:
+    """Return the league details JSON for a draft league."""
+    url = f"{DRAFT_API_URL}/api/league/{league_id}/details"
+    response = client.get(url)
+    response.raise_for_status()
+    return response.json()
