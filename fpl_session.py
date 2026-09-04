@@ -298,8 +298,15 @@ class FPLSession:
 
     def get_my_team(
         self,
-        entry_id: int
+        entry_id: int | None = None,
     ):
+        """Fetch the current team, resolving the draft entry from bootstrap data when needed."""
+        if entry_id is None:
+            entry_ids = self.get_my_team_id()
+            if not entry_ids:
+                raise ValueError("No draft entry IDs were returned by bootstrap-dynamic.")
+            entry_id = entry_ids[0]
+
         return (
             __import__("fpl_draft.api", fromlist=["get_my_team"])  # lazy import
             .get_my_team(self, entry_id)
@@ -338,6 +345,17 @@ class FPLSession:
         response = self.get(url)
         response.raise_for_status()
         return response.json()
+
+    def get_my_team_id(self):
+        """Fetch the current draft entry IDs from the bootstrap-dynamic payload.
+
+        This returns the raw `player.entry_set` list, which is used by callers that
+        need to resolve the active entry without passing an explicit ID.
+        """
+        return (
+            __import__("fpl_draft.api", fromlist=["get_bootstrap_dynamic_entry_set"])  # lazy import
+            .get_bootstrap_dynamic_entry_set(self)
+        )
 
     def sync_league_history(
         self,

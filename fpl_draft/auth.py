@@ -5,14 +5,12 @@ session-like object which implements `_ensure_authenticated(entry_id)`.
 It allows future extraction of Playwright-specific logic into this
 module without changing callers.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 from typing import Any
 import time
 from pathlib import Path
-
 import requests
-
 from playwright.sync_api import (
     BrowserContext,
     Page,
