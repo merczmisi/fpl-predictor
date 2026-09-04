@@ -51,6 +51,21 @@ def get_bootstrap_static(client: Any) -> dict:
     return response.json()
 
 
+def get_bootstrap_dynamic_entry_set(client: Any) -> list[int]:
+    """Fetch the draft `bootstrap-dynamic` payload and return `player.entry_set`.
+
+    This is a thin wrapper so callers can unit-test against a small client stub.
+    """
+    url = f"{DRAFT_API_URL}/api/bootstrap-dynamic"
+    response = client.get(url)
+    response.raise_for_status()
+
+    body = response.json()
+    player = body.get("player") or {}
+
+    return player.get("entry_set", [])
+
+
 def get_element_summary(client: Any, player_id: int) -> dict:
     url = f"{DRAFT_API_URL}/api/element-summary/{player_id}"
     response = client.get(url)

@@ -1,0 +1,5 @@
+body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; margin: 0; padding: 1rem; }
+.app header { margin-bottom: 1rem }
+.controls { margin-bottom: 1rem }
+.controls input { margin-left: 0.5rem; width: 120px }
+.chart { max-width: 1000px }

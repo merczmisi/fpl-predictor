@@ -56,3 +56,14 @@ def test_get_league_details():
     assert league["league"]["id"] == 55729
     assert league["league_entries"][0]["entry_name"] == "Alpha"
     assert league["matches"][0]["event"] == 1
+
+
+def test_get_bootstrap_dynamic_entry_set():
+    from fpl_draft import api
+
+    url = "https://draft.premierleague.com/api/bootstrap-dynamic"
+    client = DummyClient({url: {"player": {"entry_set": [299995]}}})
+
+    entry_set = api.get_bootstrap_dynamic_entry_set(client)
+
+    assert entry_set == [299995]
