@@ -9,7 +9,28 @@ from fpl_draft.features import (
     compute_base_points,
     apply_fdr_multiplier,
     compute_expected_points_from_df,
+    rank_players_by_position,
 )
+
+
+def get_players_on_form_by_position(
+    client: Any, position: str, n: int = 20
+) -> pd.DataFrame:
+    """Fetch bootstrap data and return the best players at a position."""
+    data = api.get_bootstrap_static(client)
+    players = pd.json_normalize(data.get("elements") or [])
+    return rank_players_by_position(players, position, n=n)
+
+def get_my_players_by_position(
+    client: Any,
+    entry_id: int,
+) -> pd.DataFrame:
+    """Fetch bootstrap data and return the best players at a position."""
+    data = api.get_bootstrap_static(client)
+    my_team_ids = api.get_my_team_ids(client, entry_id)
+    all_players = pd.json_normalize(data.get("elements") or [])
+    my_team_players = all_players[all_players["id"].isin(my_team_ids)]
+    return rank_players_by_position(my_team_players, position=None, n=len(my_team_players))
 
 
 def compute_expected_points_for_entry(

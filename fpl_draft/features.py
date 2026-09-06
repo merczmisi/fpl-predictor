@@ -3,6 +3,14 @@ from typing import Dict
 import pandas as pd
 
 
+POSITIONS = {
+    1: "gk",
+    2: "def",
+    3: "mid",
+    4: "fwd",
+}
+
+
 def normalize_league_details(payload: dict) -> pd.DataFrame:
     """Convert a draft league-details payload into a tidy standings DataFrame.
 
@@ -118,6 +126,50 @@ def compute_base_points(df: pd.DataFrame) -> pd.DataFrame:
         0.6 * df["form"] + 0.4 * df["points_per_game"]
     )
     return df
+
+
+def rank_players_by_position(
+    df: pd.DataFrame, position: str | None = None, n: int = 20
+) -> pd.DataFrame:
+    """Return the top ``n`` players ranked by form and points per game."""
+    if position is not None:
+        position = position.lower()
+        valid_positions = set(POSITIONS.values())
+        if position not in valid_positions:
+            choices = ", ".join(sorted(valid_positions))
+            raise ValueError(f"Invalid position '{position}'. Choose from: {choices}")
+
+    if n < 0:
+        raise ValueError("n must be non-negative")
+
+    ranked = df.copy()
+    for column in ("form", "points_per_game"):
+        ranked[column] = pd.to_numeric(ranked[column], errors="coerce")
+
+    ranked = compute_base_points(ranked)
+    ranked["element_type"] = pd.to_numeric(
+        ranked["element_type"], errors="coerce"
+    ).map(POSITIONS)
+
+    if position is not None:
+        ranked = ranked[ranked["element_type"] == position]
+
+    columns = [
+        "id",
+        "web_name",
+        "base_points",
+        "team",
+        "element_type",
+        "form",
+        "points_per_game",
+    ]
+    return (
+        ranked
+        .sort_values("base_points", ascending=False, na_position="last")
+        .head(n)
+        .reindex(columns=columns)
+        .reset_index(drop=True)
+    )
 
 
 def apply_fdr_multiplier(

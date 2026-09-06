@@ -1,6 +1,6 @@
 import pandas as pd
 
-from fpl_draft.predict import compute_expected_points_for_entry
+from fpl_draft.predict import compute_expected_points_for_entry, get_players_on_form_by_position
 
 
 class DummyResponse:
@@ -77,3 +77,21 @@ def test_compute_expected_points_simple():
     # expected_points: player1 -> base=4.2, fdr(1)=1.15 -> 4.83; player2 -> base=1.6
     vals = list(df["expected_points"].astype(float).round(2))
     assert vals == [4.83, 1.6]
+
+
+def test_get_players_on_form_by_position():
+    class BootstrapClient:
+        def get(self, url, **kwargs):
+            return DummyResponse(
+                {
+                    "elements": [
+                        {"id": 1, "web_name": "A", "form": "2", "points_per_game": "4", "team": 1, "element_type": 2},
+                        {"id": 2, "web_name": "B", "form": "8", "points_per_game": "1", "team": 2, "element_type": 3},
+                    ]
+                }
+            )
+
+    result = get_players_on_form_by_position(BootstrapClient(), "mid")
+
+    assert list(result["id"]) == [2]
+    assert result.loc[0, "base_points"] == 5.2

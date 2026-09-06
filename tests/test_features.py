@@ -1,10 +1,12 @@
 import pandas as pd
+import pytest
 
 from fpl_draft.features import (
     compute_base_points,
     apply_fdr_multiplier,
     compute_expected_points_from_df,
     normalize_league_details,
+    rank_players_by_position,
 )
 from fpl_draft.storage import save_league_history, load_league_history, load_league_history_pivot
 
@@ -137,3 +139,32 @@ def test_feature_pipeline_simple():
 
     assert df.loc[df.id == 1, "expected_points"].iloc[0] == exp1
     assert df.loc[df.id == 2, "expected_points"].iloc[0] == exp2
+
+
+def test_rank_players_by_position_converts_api_values_and_sorts():
+    df = pd.DataFrame(
+        [
+            {"id": 1, "web_name": "Keeper", "form": "5.0", "points_per_game": "3.0", "team": 1, "element_type": 1},
+            {"id": 2, "web_name": "Defender", "form": "9.0", "points_per_game": "1.0", "team": 2, "element_type": 2},
+            {"id": 3, "web_name": "Midfielder", "form": "4.0", "points_per_game": "6.0", "team": 3, "element_type": 3},
+        ]
+    )
+
+    result = rank_players_by_position(df, "mid", n=20)
+
+    assert list(result["id"]) == [3]
+    assert result.loc[0, "element_type"] == "mid"
+    assert result.loc[0, "base_points"] == pytest.approx(4.8)
+
+    all_positions = rank_players_by_position(df, n=2)
+
+    assert list(all_positions["id"]) == [2, 3]
+
+
+def test_rank_players_by_position_rejects_invalid_position():
+    try:
+        rank_players_by_position(pd.DataFrame(), "str")
+    except ValueError as exc:
+        assert "Invalid position" in str(exc)
+    else:
+        raise AssertionError("Expected invalid positions to raise ValueError")

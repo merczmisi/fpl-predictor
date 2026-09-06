@@ -346,6 +346,25 @@ class FPLSession:
         response.raise_for_status()
         return response.json()
 
+    def get_players_on_form_by_position(
+        self,
+        position: str,
+        n: int = 20,
+    ) -> pd.DataFrame:
+        """Return the top players at a position by form and points per game."""
+        return __import__(
+            "fpl_draft.predict", fromlist=["get_players_by_position"]
+        ).get_players_on_form_by_position(self, position, n=n)
+        
+    def get_base_points_for_my_team(
+        self,
+        entry_id: int
+    ) -> pd.DataFrame:
+        """Return the base-points for my team."""
+        return __import__(
+            "fpl_draft.predict", fromlist=["get_players_by_position"]
+        ).get_my_players_by_position(self, entry_id=entry_id)
+
     def get_my_team_id(self):
         """Fetch the current draft entry IDs from the bootstrap-dynamic payload.
 
