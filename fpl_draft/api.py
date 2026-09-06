@@ -45,7 +45,7 @@ def get_my_team_ids(client: Any, entry_id: int) -> list[int]:
 
 
 def get_bootstrap_static(client: Any) -> dict:
-    url = f"{FANTASY_API_URL}/api/bootstrap-static/"
+    url = f"{DRAFT_API_URL}/api/bootstrap-static"
     response = client.get(url)
     response.raise_for_status()
     return response.json()
@@ -68,6 +68,14 @@ def get_bootstrap_dynamic_entry_set(client: Any) -> list[int]:
 
 def get_element_summary(client: Any, player_id: int) -> dict:
     url = f"{DRAFT_API_URL}/api/element-summary/{player_id}"
+    response = client.get(url)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_event_fixtures(client: Any, event_id: int) -> list[dict]:
+    """Return the fixtures for a draft event."""
+    url = f"{DRAFT_API_URL}/api/event/{event_id}/fixtures"
     response = client.get(url)
     response.raise_for_status()
     return response.json()

@@ -67,3 +67,23 @@ def test_get_bootstrap_dynamic_entry_set():
     entry_set = api.get_bootstrap_dynamic_entry_set(client)
 
     assert entry_set == [299995]
+
+
+def test_get_event_fixtures():
+    from fpl_draft import api
+
+    url = "https://draft.premierleague.com/api/event/3/fixtures"
+    fixtures = [
+        {
+            "id": 29,
+            "event": 3,
+            "team_a": 6,
+            "team_h": 1,
+            "kickoff_time": "2026-09-06T15:30:00Z",
+        }
+    ]
+    client = DummyClient({url: fixtures})
+
+    result = api.get_event_fixtures(client, 3)
+
+    assert result == fixtures

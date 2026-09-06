@@ -31,15 +31,30 @@ class DummyClient:
                             "form": "5.0",
                             "points_per_game": "3.0",
                             "chance_of_playing_next_round": "100",
+                            "team": 1,
                         },
                         {
                             "id": 2,
                             "form": "2.0",
                             "points_per_game": "1.0",
                             "chance_of_playing_next_round": "100",
+                            "team": 2,
                         },
-                    ]
+                    ],
+                    "teams": [
+                        {"id": 1, "name": "Arsenal"},
+                        {"id": 2, "name": "Chelsea"},
+                        {"id": 3, "name": "Liverpool"},
+                    ],
                 }
+            )
+
+        if "event/4/fixtures" in url:
+            return DummyResponse(
+                [
+                    {"team_h": 1, "team_a": 3},
+                    {"team_h": 2, "team_a": 1},
+                ]
             )
 
         # Element summary -> fixtures
@@ -57,6 +72,7 @@ def test_compute_expected_points_simple():
     df = compute_expected_points_for_entry(client, entry_id=999, event_id=4)
 
     assert list(df["id"]) == [1, 2]
+    assert list(df["next_opponent"]) == ["Liverpool", "Arsenal"]
 
     # expected_points: player1 -> base=4.2, fdr(1)=1.15 -> 4.83; player2 -> base=1.6
     vals = list(df["expected_points"].astype(float).round(2))

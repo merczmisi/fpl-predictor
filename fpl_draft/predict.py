@@ -31,8 +31,26 @@ def compute_expected_points_for_entry(
     data = api.get_bootstrap_static(client)
 
     players = pd.json_normalize(data["elements"])
+    
+    fixtures = api.get_event_fixtures(client, event_id)
+    
+    teams = pd.json_normalize(data["teams"])
 
     selected = players.set_index("id").loc[player_ids].reset_index()
+
+    team_names = teams.set_index("id")["name"].to_dict()
+
+    def get_next_opponent(team_id: int) -> str | None:
+        for fixture in fixtures:
+            home_team = fixture.get("team_h")
+            away_team = fixture.get("team_a")
+            if team_id == home_team:
+                return team_names.get(away_team)
+            if team_id == away_team:
+                return team_names.get(home_team)
+        return None
+
+    selected["next_opponent"] = selected["team"].apply(get_next_opponent)
 
     # Ensure numeric columns
     selected["form"] = pd.to_numeric(selected["form"], errors="coerce")

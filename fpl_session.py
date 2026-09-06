@@ -383,7 +383,7 @@ class FPLSession:
             "fpl_draft.predict", fromlist=["compute_expected_points_for_entry"]
         ).compute_expected_points_for_entry(self, entry_id, event_id)
         
-    def get_expected_points_from_my_team(
+    def get_expected_points_for_my_team(
         self,
         entry_id: int
     ):
