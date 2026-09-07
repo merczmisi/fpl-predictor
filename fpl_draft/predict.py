@@ -99,22 +99,49 @@ def compute_expected_points_for_entry(
 
 
 def compute_expected_points_for_entry_from_my_team(
-    client: Any, entry_id: int,
+    client: Any, entry_id: int | None = None,
 ) -> pd.DataFrame:
     """Compute expected points for an entry using the persistent `my-team`.
 
-    - Fetch player ids from the entry's `my-team` payload (no event id).
+    - Resolve the active entry when no entry ID is provided.
+    - Fetch the current event from the Draft game endpoint.
+    - Fetch player ids from the entry's `my-team` payload.
     - Fetch `bootstrap-static` and select the players in the same order.
     - Compute base points, apply FDR multipliers, and final expected points.
     """
+
+    if entry_id is None:
+        entry_ids = api.get_bootstrap_dynamic_entry_set(client)
+        if not entry_ids:
+            raise ValueError("No draft entry IDs were returned by bootstrap-dynamic.")
+        entry_id = entry_ids[0]
+
+    game = api.get_game(client)
+    event_id = game["next_event"]
 
     player_ids = api.get_my_team_ids(client, entry_id)
 
     data = api.get_bootstrap_static(client)
 
     players = pd.json_normalize(data["elements"])
+    fixtures = api.get_event_fixtures(client, event_id)
+    teams = pd.json_normalize(data["teams"])
 
     selected = players.set_index("id").loc[player_ids].reset_index()
+
+    team_names = teams.set_index("id")["name"].to_dict()
+
+    def get_next_opponent(team_id: int) -> str | None:
+        for fixture in fixtures:
+            home_team = fixture.get("team_h")
+            away_team = fixture.get("team_a")
+            if team_id == home_team:
+                return team_names.get(away_team)
+            if team_id == away_team:
+                return team_names.get(home_team)
+        return None
+
+    selected["next_opponent"] = selected["team"].apply(get_next_opponent)
 
     # Ensure numeric columns
     selected["form"] = pd.to_numeric(selected["form"], errors="coerce")

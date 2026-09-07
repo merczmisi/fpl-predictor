@@ -1,6 +1,10 @@
 import pandas as pd
 
-from fpl_draft.predict import compute_expected_points_for_entry, get_players_on_form_by_position
+from fpl_draft.predict import (
+    compute_expected_points_for_entry,
+    compute_expected_points_for_entry_from_my_team,
+    get_players_on_form_by_position,
+)
 
 
 class DummyResponse:
@@ -95,3 +99,19 @@ def test_get_players_on_form_by_position():
 
     assert list(result["id"]) == [2]
     assert result.loc[0, "base_points"] == 5.2
+
+
+def test_compute_expected_points_for_my_team_uses_current_event_when_entry_omitted():
+    class MyTeamClient(DummyClient):
+        def get(self, url, **kwargs):
+            if url.endswith("/api/bootstrap-dynamic"):
+                return DummyResponse({"player": {"entry_set": [999]}})
+            if url.endswith("/api/game"):
+                return DummyResponse({"next_event": 4})
+            if url.endswith("/api/entry/999/my-team"):
+                return DummyResponse({"picks": [{"element": 1}, {"element": 2}]})
+            return super().get(url, **kwargs)
+
+    df = compute_expected_points_for_entry_from_my_team(MyTeamClient())
+
+    assert list(df["next_opponent"]) == ["Liverpool", "Arsenal"]

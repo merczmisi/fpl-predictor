@@ -51,6 +51,14 @@ def get_bootstrap_static(client: Any) -> dict:
     return response.json()
 
 
+def get_game(client: Any) -> dict:
+    """Return the current Draft game and event status."""
+    url = f"{DRAFT_API_URL}/api/game"
+    response = client.get(url)
+    response.raise_for_status()
+    return response.json()
+
+
 def get_bootstrap_dynamic_entry_set(client: Any) -> list[int]:
     """Fetch the draft `bootstrap-dynamic` payload and return `player.entry_set`.
 

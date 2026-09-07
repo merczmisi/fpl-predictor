@@ -346,6 +346,12 @@ class FPLSession:
         response.raise_for_status()
         return response.json()
 
+    def get_game(self):
+        """Fetch the current Draft game and event status."""
+        return __import__(
+            "fpl_draft.api", fromlist=["get_game"]
+        ).get_game(self)
+
     def get_players_on_form_by_position(
         self,
         position: str,
@@ -404,7 +410,7 @@ class FPLSession:
         
     def get_expected_points_for_my_team(
         self,
-        entry_id: int
+        entry_id: int | None = None,
     ):
         """Delegate expected points computation to the `predict` orchestrator."""
 

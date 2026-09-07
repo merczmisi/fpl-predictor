@@ -69,6 +69,25 @@ def test_get_bootstrap_dynamic_entry_set():
     assert entry_set == [299995]
 
 
+def test_get_game():
+    from fpl_draft import api
+
+    url = "https://draft.premierleague.com/api/game"
+    game = {
+        "current_event": 3,
+        "current_event_finished": False,
+        "next_event": 4,
+        "processing_status": "n",
+        "trades_time_for_approval": True,
+        "waivers_processed": False,
+    }
+    client = DummyClient({url: game})
+
+    result = api.get_game(client)
+
+    assert result == game
+
+
 def test_get_event_fixtures():
     from fpl_draft import api
 
