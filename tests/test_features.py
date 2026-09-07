@@ -13,7 +13,7 @@ from fpl_draft.storage import save_league_history, load_league_history, load_lea
 
 def test_normalize_league_details():
     payload = {
-        "league": {"id": 55729, "name": "Test League", "current_event": 3},
+        "league": {"id": 55729, "name": "Test League", "current_event": 99},
         "league_entries": [
             {"entry_id": 293299, "id": 295995, "entry_name": "Alpha"},
             {"entry_id": 299263, "id": 302017, "entry_name": "Beta"},
@@ -35,8 +35,9 @@ def test_normalize_league_details():
             },
         ],
     }
+    game = {"current_event": 3}
 
-    df = normalize_league_details(payload)
+    df = normalize_league_details(payload, game)
 
     assert list(df.columns) == [
         "league_id",
@@ -59,7 +60,7 @@ def test_normalize_league_details():
 def test_save_and_load_league_history(tmp_path):
     db_path = tmp_path / "league_history.sqlite"
     payload = {
-        "league": {"id": 55729, "name": "Test League", "current_event": 3},
+        "league": {"id": 55729, "name": "Test League", "current_event": 99},
         "league_entries": [
             {"entry_id": 293299, "id": 295995, "entry_name": "Alpha"},
             {"entry_id": 299263, "id": 302017, "entry_name": "Beta"},
@@ -69,8 +70,9 @@ def test_save_and_load_league_history(tmp_path):
             {"league_entry": 302017, "rank": 2, "total": 58, "points_for": 81, "points_against": 78},
         ],
     }
+    game = {"current_event": 3}
 
-    df = normalize_league_details(payload)
+    df = normalize_league_details(payload, game)
     save_league_history(df, str(db_path))
     save_league_history(df, str(db_path))
     loaded = load_league_history(55729, str(db_path))

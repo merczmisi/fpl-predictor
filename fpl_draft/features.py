@@ -11,11 +11,12 @@ POSITIONS = {
 }
 
 
-def normalize_league_details(payload: dict) -> pd.DataFrame:
+def normalize_league_details(payload: dict, game: dict) -> pd.DataFrame:
     """Convert a draft league-details payload into a tidy standings DataFrame.
 
     The returned rows are one per league participant for the current gameweek,
-    with columns that map directly to a position-over-time chart.
+    with columns that map directly to a position-over-time chart. The gameweek
+    comes from the Draft game payload's ``current_event`` field.
     """
     league = payload.get("league") or {}
     league_entries = payload.get("league_entries") or []
@@ -55,12 +56,7 @@ def normalize_league_details(payload: dict) -> pd.DataFrame:
             }
 
     rows = []
-    gameweek = (
-        league.get("current_event")
-        or league.get("start_event")
-        or league.get("event")
-        or 1
-    )
+    gameweek = game["current_event"]
 
     for item in standings:
         standing_entry_id = item.get("league_entry") or item.get("entry_id")

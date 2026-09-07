@@ -187,10 +187,7 @@ class FPLSession:
                 "Refreshing browser authentication..."
             )
 
-            self.access_token = None
-            self.expires_at = 0
-
-            token = self._refresh_through_browser(
+            token = self.auth.refresh_authenticated(
                 entry_id=entry_id,
             )
 
@@ -392,7 +389,8 @@ class FPLSession:
         from fpl_draft.storage import save_league_history
 
         payload = self.get_league_details(league_id)
-        df = normalize_league_details(payload)
+        game = self.get_game()
+        df = normalize_league_details(payload, game)
         save_league_history(df, db_path=db_path)
         return df
 

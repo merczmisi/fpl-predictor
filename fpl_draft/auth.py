@@ -380,6 +380,15 @@ class BrowserAuth:
 
         raise RuntimeError("Interactive login completed, but no valid FPL access token was found.")
 
+    def refresh_authenticated(self, entry_id: int = 299995) -> str:
+        """Force a browser token refresh after an API authentication failure."""
+        if self._session_like is not None:
+            return self._session_like._ensure_authenticated(entry_id=entry_id)
+
+        self.access_token = None
+        self.expires_at = 0
+        return self._refresh_through_browser(entry_id=entry_id)
+
     # Backwards-compatible alias
     def ensure_token(self, entry_id: int = 299995) -> str:
         return self.ensure_authenticated(entry_id=entry_id)
