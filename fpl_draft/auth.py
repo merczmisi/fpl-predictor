@@ -295,27 +295,35 @@ class BrowserAuth:
         except Exception:
             return False
 
-    def _wait_for_login(self) -> None:
-        if self._page is None:
+    def _wait_for_login(self) -> str:
+        if self._context is None or self._page is None:
             raise RuntimeError("Browser page does not exist.")
 
         deadline = time.time() + self.LOGIN_TIMEOUT / 1000
 
         while time.time() < deadline:
-            if self._is_fpl_page():
+            pages = [page for page in self._context.pages if not page.is_closed()]
+            for page in pages:
                 try:
-                    self._page.wait_for_timeout(1000)
+                    if not page.url.startswith("https://draft.premierleague.com"):
+                        continue
+                    self._page = page
+                    if self._sync_browser_token() and self._token_is_valid():
+                        return self.access_token
                 except Exception:
-                    pass
+                    continue
 
-                if self._sync_browser_token() and self._token_is_valid():
-                    return
+            try:
+                self._page.wait_for_timeout(1000)
+            except Exception:
+                time.sleep(1)
 
-            time.sleep(0.5)
+            if self._sync_browser_token() and self._token_is_valid():
+                return self.access_token
 
         raise TimeoutError("Interactive FPL login did not complete within timeout.")
 
-    def _restart_visible_for_login(self) -> None:
+    def _restart_visible_for_login(self) -> str:
         if self._context is not None:
             try:
                 self._context.close()
@@ -338,7 +346,9 @@ class BrowserAuth:
         except PlaywrightTimeoutError:
             pass
 
-        self._wait_for_login()
+        token = self._wait_for_login()
+        self.close()
+        return token
 
     # ------------------------------------------------------------
     # Public authentication API
@@ -362,7 +372,7 @@ class BrowserAuth:
 
         # Interactive login path
         if self.headless:
-            self._restart_visible_for_login()
+            return self._restart_visible_for_login()
         else:
             if not self._is_fpl_page():
                 try:
