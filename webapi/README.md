@@ -19,6 +19,16 @@ cd ..
 uvicorn webapi.app:app --host 127.0.0.1 --port 8000
 ```
 
+After installing the project in editable mode, the same workflow can be started
+with one command. It opens the dashboard in the default browser automatically:
+
+```bash
+pip install -e .
+fpl-draft
+```
+
+Use `fpl-draft --no-browser` when the dashboard should start without opening a tab.
+
 Then open `http://127.0.0.1:8000`. Select **Connect FPL account** and complete the
 FPL login in the browser window opened by Playwright. The browser profile is stored
 in `~/.fpl-playwright` by default, so later launches can reuse the local session.
