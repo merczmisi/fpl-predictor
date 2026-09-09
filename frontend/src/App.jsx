@@ -3,25 +3,67 @@ import ExpectedPointsChart from "./ExpectedPointsChart";
 
 export default function App() {
   const [players, setPlayers] = useState([]);
+  const [connection, setConnection] = useState("checking");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    async function loadData() {
+    async function checkConnection() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/expected_points?use_my_team=true");
+        const res = await fetch("/auth/status");
         if (!res.ok) {
           throw new Error(`Request failed with status ${res.status}`);
         }
 
         const body = await res.json();
-        setPlayers(body.data || []);
+        setConnection(body.connected ? "connected" : "disconnected");
       } catch (err) {
         console.error(err);
-        alert("Error fetching expected points: " + (err.message || err));
+        setConnection("error");
+        setError(err.message || String(err));
       }
     }
 
-    loadData();
+    checkConnection();
   }, []);
+
+  async function connectFpl() {
+    setConnection("connecting");
+    setError("");
+
+    try {
+      const res = await fetch("/auth/connect", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body.detail || `Request failed with status ${res.status}`);
+      }
+      setConnection("connected");
+    } catch (err) {
+      console.error(err);
+      setConnection("disconnected");
+      setError(err.message || String(err));
+    }
+  }
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/expected_points?use_my_team=true");
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}`);
+      }
+
+      const body = await res.json();
+      setPlayers(body.data || []);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Derive a sorted, selected columns view similar to the pandas snippet
   const selected = useMemo(() => {
@@ -49,7 +91,28 @@ export default function App() {
     <div className="app">
       <header>
         <h1>FPL Draft — Expected Points</h1>
+        <p className={`connection connection-${connection}`}>
+          {connection === "connected" && "FPL account connected"}
+          {connection === "disconnected" && "Connect your FPL account to load your team."}
+          {connection === "connecting" && "Waiting for FPL login..."}
+          {connection === "checking" && "Checking local connection..."}
+          {connection === "error" && "The local API is unavailable."}
+        </p>
       </header>
+
+      <section className="controls" aria-label="FPL account controls">
+        {connection !== "connected" && (
+          <button type="button" onClick={connectFpl} disabled={connection === "connecting"}>
+            {connection === "connecting" ? "Connect in progress..." : "Connect FPL account"}
+          </button>
+        )}
+        {connection === "connected" && (
+          <button type="button" onClick={loadData} disabled={loading}>
+            {loading ? "Loading..." : "Load my team"}
+          </button>
+        )}
+        {error && <p className="error">{error}</p>}
+      </section>
 
       <section className="chart">
         <ExpectedPointsChart data={selected} />

@@ -4,11 +4,13 @@ import asyncio
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Optional
 
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from fpl_draft.predict import (
     compute_expected_points_for_entry,
@@ -40,17 +42,48 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/auth/status")
+def auth_status() -> dict:
+    """Return local FPL connection state without exposing credentials."""
+    if os.environ.get("FPL_AUTH_DISABLED") == "1":
+        return {"connected": True, "mode": "disabled"}
+
+    browser_auth = _get_browser_auth()
+    connected = bool(browser_auth.access_token and browser_auth._token_is_valid())
+    return {"connected": connected, "mode": "local"}
+
+
+@app.post("/auth/connect")
+async def auth_connect() -> dict:
+    """Open the local FPL login flow when authentication is needed."""
+    if os.environ.get("FPL_AUTH_DISABLED") == "1":
+        return {"connected": True, "mode": "disabled"}
+
+    try:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(browser_executor, _get_browser_auth().ensure_authenticated)
+        return {"connected": True, "mode": "local"}
+    except Exception as exc:
+        logger.exception("FPL connection failed")
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+def _get_browser_auth() -> BrowserAuth:
+    if not hasattr(app.state, "browser_auth"):
+        headless = os.environ.get("FPL_HEADLESS", "1") != "0"
+        app.state.browser_auth = BrowserAuth(headless=headless)
+    return app.state.browser_auth
+
+
 def _authenticated_client():
     """Create the API client on the dedicated Playwright thread."""
     if os.environ.get("FPL_AUTH_DISABLED") == "1":
         return requests.Session()
 
-    if not hasattr(app.state, "browser_auth"):
-        headless = os.environ.get("FPL_HEADLESS", "1") != "0"
-        app.state.browser_auth = BrowserAuth(headless=headless)
+    browser_auth = _get_browser_auth()
 
     def token_provider(eid: int) -> str:
-        return app.state.browser_auth.ensure_authenticated(eid)
+        return browser_auth.ensure_authenticated(eid)
 
     return FplHttpClient(token_provider=token_provider)
 
@@ -126,3 +159,8 @@ async def bootstrap_dynamic_entry_set(entry_id: int):
         if "403" in msg or "Forbidden" in msg:
             raise HTTPException(status_code=502, detail=f"Upstream API returned 403 Forbidden: {msg}")
         raise HTTPException(status_code=500, detail=msg)
+
+
+frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
