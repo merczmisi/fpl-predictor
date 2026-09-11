@@ -14,12 +14,11 @@ fi
 .venv/bin/python -m PyInstaller --noconfirm --clean packaging/fpl-draft.spec
 
 PLAYWRIGHT_CACHE="$HOME/Library/Caches/ms-playwright"
-CHROMIUM_DIR=$(find "$PLAYWRIGHT_CACHE" -maxdepth 1 -type d -name 'chromium-*' | sort | tail -n 1)
-if [ -z "$CHROMIUM_DIR" ]; then
+if [ ! -d "$PLAYWRIGHT_CACHE" ]; then
   echo "Playwright Chromium was not found in $PLAYWRIGHT_CACHE" >&2
   exit 1
 fi
 mkdir -p dist/fpl-draft/playwright-browsers
-cp -R "$CHROMIUM_DIR" dist/fpl-draft/playwright-browsers/
+cp -R "$PLAYWRIGHT_CACHE/." dist/fpl-draft/playwright-browsers/
 
 echo "Built: $ROOT_DIR/dist/fpl-draft/fpl-draft"
