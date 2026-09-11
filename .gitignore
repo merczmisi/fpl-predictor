@@ -53,6 +53,9 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/.env.local
 
+# Local packaging output
+packaging/*.log
+
 # Playwright browser profile (local dev)
 .fpl-playwright/
 

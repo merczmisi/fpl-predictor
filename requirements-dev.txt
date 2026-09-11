@@ -6,3 +6,4 @@ flake8
 pre-commit
 mypy
 types-requests
+pyinstaller

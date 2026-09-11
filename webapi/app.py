@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
@@ -161,6 +162,9 @@ async def bootstrap_dynamic_entry_set(entry_id: int):
         raise HTTPException(status_code=500, detail=msg)
 
 
-frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    frontend_dist = Path(sys._MEIPASS) / "frontend" / "dist"
+else:
+    frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if frontend_dist.exists():
     app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
