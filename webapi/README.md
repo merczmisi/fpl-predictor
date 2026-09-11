@@ -39,6 +39,27 @@ Give friends `dist/fpl-draft-0.1.0-macos-arm64.dmg`. They open it and drag
 **FPL Draft.app** into **Applications**. Their FPL login remains in
 `~/.fpl-playwright` when they install a newer app version.
 
+The default build uses an ad-hoc signature for local testing. For a build that
+can be distributed without Gatekeeper warnings, use an Apple Developer ID
+certificate and notarize the DMG:
+
+```bash
+security find-identity -v -p codesigning
+MACOS_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+	./packaging/build-dmg.sh 0.1.0
+xcrun notarytool submit dist/fpl-draft-0.1.0-macos-arm64.dmg \
+	--keychain-profile YOUR_NOTARY_PROFILE --wait
+xcrun stapler staple dist/fpl-draft-0.1.0-macos-arm64.dmg
+```
+
+Without signing and notarization, macOS may report a downloaded app as
+damaged. For a private test build on another Mac, remove the quarantine flag
+after downloading:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/FPL Draft.app"
+```
+
 Then open `http://127.0.0.1:8000`. Select **Connect FPL account** and complete the
 FPL login in the browser window opened by Playwright. The browser profile is stored
 in `~/.fpl-playwright` by default, so later launches can reuse the local session.
