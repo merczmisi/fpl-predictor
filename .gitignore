@@ -55,6 +55,7 @@ frontend/.env.local
 
 # Local packaging output
 packaging/*.log
+dist/*.dmg
 
 # Playwright browser profile (local dev)
 .fpl-playwright/

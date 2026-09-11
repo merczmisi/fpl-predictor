@@ -29,6 +29,16 @@ fpl-draft
 
 Use `fpl-draft --no-browser` when the dashboard should start without opening a tab.
 
+To create a friend-facing macOS app and disk image:
+
+```bash
+./packaging/build-dmg.sh 0.1.0
+```
+
+Give friends `dist/fpl-draft-0.1.0-macos-arm64.dmg`. They open it and drag
+**FPL Draft.app** into **Applications**. Their FPL login remains in
+`~/.fpl-playwright` when they install a newer app version.
+
 Then open `http://127.0.0.1:8000`. Select **Connect FPL account** and complete the
 FPL login in the browser window opened by Playwright. The browser profile is stored
 in `~/.fpl-playwright` by default, so later launches can reuse the local session.
