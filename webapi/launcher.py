@@ -49,13 +49,19 @@ def run_auth_worker() -> int:
     return 0
 
 
+# Only one auth worker may use the shared Chromium profile at a time.
+_auth_worker_lock = threading.Lock()
+
+
 def get_auth_token() -> str:
     if getattr(sys, "frozen", False):
         command = [sys.executable, "--auth-worker"]
     else:
         command = [sys.executable, "-m", "webapi.launcher", "--auth-worker"]
 
-    completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    with _auth_worker_lock:
+        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip() or "FPL authentication worker failed."
         raise RuntimeError(detail)

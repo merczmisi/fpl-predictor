@@ -34,12 +34,22 @@ class AsyncBrowserAuth:
         self._page = None
         self._playwright = None
 
-    async def _start(self, headless: bool) -> None:
+    async def _start(self, headless: bool, attempts: int = 5) -> None:
         self.profile_dir.mkdir(parents=True, exist_ok=True)
-        self._playwright = await async_playwright().start()
-        self._context = await self._playwright.chromium.launch_persistent_context(
-            user_data_dir=str(self.profile_dir), headless=headless
-        )
+        for attempt in range(attempts):
+            self._playwright = await async_playwright().start()
+            try:
+                self._context = await self._playwright.chromium.launch_persistent_context(
+                    user_data_dir=str(self.profile_dir), headless=headless
+                )
+                break
+            except Exception as exc:
+                await self._playwright.stop()
+                self._playwright = None
+                # A just-closed Chromium instance can briefly hold the profile lock.
+                if "existing browser session" not in str(exc) or attempt == attempts - 1:
+                    raise
+                await asyncio.sleep(1)
         pages = [page for page in self._context.pages if not page.is_closed()]
         self._page = next((page for page in pages if page.url.startswith("https://draft.premierleague.com")), None)
         if self._page is None:
