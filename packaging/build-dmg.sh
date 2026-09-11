@@ -22,7 +22,11 @@ cp packaging/Info.plist "$APP_DIR/Contents/Info.plist"
 cp "dist/fpl-draft/fpl-draft" "$APP_DIR/Contents/MacOS/fpl-draft"
 cp -R "dist/fpl-draft/_internal" "$APP_DIR/Contents/Resources/_internal"
 cp -R "dist/fpl-draft/playwright-browsers" "$APP_DIR/Contents/Resources/_internal/playwright-browsers"
-ln -s Resources/_internal "$APP_DIR/Contents/Frameworks"
+mkdir -p "$APP_DIR/Contents/Frameworks"
+for resource in "$APP_DIR/Contents/Resources/_internal/"*; do
+  ln -s "../Resources/_internal/$(basename "$resource")" \
+    "$APP_DIR/Contents/Frameworks/$(basename "$resource")"
+done
 
 # The files moved into the app bundle after PyInstaller built them, so sign the
 # completed bundle. Use a Developer ID identity for distributable releases;

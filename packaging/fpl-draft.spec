@@ -19,7 +19,7 @@ a = Analysis(
         (str(frontend_dist), "frontend/dist"),
         *playwright_datas,
     ],
-    hiddenimports=["webapi.app", *playwright_hiddenimports],
+    hiddenimports=["webapi.app", "fpl_draft.async_auth", *playwright_hiddenimports],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

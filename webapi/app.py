@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
@@ -20,6 +21,7 @@ from fpl_draft.predict import (
 from fpl_draft.api import get_bootstrap_dynamic_entry_set
 from fpl_draft.auth import BrowserAuth
 from fpl_draft.http import FplHttpClient
+from webapi.launcher import get_auth_token
 
 
 logger = logging.getLogger(__name__)
@@ -38,20 +40,29 @@ app.add_middleware(
 )
 
 
+_instance_token = os.environ.get("FPL_INSTANCE_TOKEN", "unknown")
+
+
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    return {"status": "ok", "instance": _instance_token}
+
+
+def _auth_status() -> dict:
+    """Return local FPL connection state without exposing credentials."""
+    try:
+        get_auth_token()
+    except Exception:
+        return {"connected": False, "mode": "local"}
+    return {"connected": True, "mode": "local"}
 
 
 @app.get("/auth/status")
-def auth_status() -> dict:
-    """Return local FPL connection state without exposing credentials."""
+async def auth_status() -> dict:
     if os.environ.get("FPL_AUTH_DISABLED") == "1":
         return {"connected": True, "mode": "disabled"}
 
-    browser_auth = _get_browser_auth()
-    connected = bool(browser_auth.access_token and browser_auth._token_is_valid())
-    return {"connected": connected, "mode": "local"}
+    return await asyncio.to_thread(_auth_status)
 
 
 @app.post("/auth/connect")
@@ -61,8 +72,7 @@ async def auth_connect() -> dict:
         return {"connected": True, "mode": "disabled"}
 
     try:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(browser_executor, _get_browser_auth().ensure_authenticated)
+        await asyncio.to_thread(get_auth_token)
         return {"connected": True, "mode": "local"}
     except Exception as exc:
         logger.exception("FPL connection failed")
@@ -70,10 +80,8 @@ async def auth_connect() -> dict:
 
 
 def _get_browser_auth() -> BrowserAuth:
-    if not hasattr(app.state, "browser_auth"):
-        headless = os.environ.get("FPL_HEADLESS", "1") != "0"
-        app.state.browser_auth = BrowserAuth(headless=headless)
-    return app.state.browser_auth
+    headless = os.environ.get("FPL_HEADLESS", "1") != "0"
+    return BrowserAuth(headless=headless)
 
 
 def _authenticated_client():
@@ -81,10 +89,8 @@ def _authenticated_client():
     if os.environ.get("FPL_AUTH_DISABLED") == "1":
         return requests.Session()
 
-    browser_auth = _get_browser_auth()
-
     def token_provider(eid: int) -> str:
-        return browser_auth.ensure_authenticated(eid)
+        return get_auth_token()
 
     return FplHttpClient(token_provider=token_provider)
 
