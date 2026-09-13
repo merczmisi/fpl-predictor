@@ -36,6 +36,17 @@ def get_next_opponent(
     return None
 
 
+def get_fixture_started(team_id: int, fixtures: list[dict]) -> bool | None:
+    """Return the `finished` flag of the first fixture involving `team_id`.
+
+    Returns `None` if no fixture for `team_id` is found in `fixtures`.
+    """
+    for fixture in fixtures:
+        if team_id in (fixture.get("team_h"), fixture.get("team_a")):
+            return fixture.get("started")
+    return None
+
+
 def normalize_league_details(payload: dict, game: dict) -> pd.DataFrame:
     """Convert a draft league-details payload into a tidy standings DataFrame.
 

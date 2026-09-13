@@ -93,4 +93,7 @@ button:disabled {
 
 .player-name { font-size: 0.85rem; font-weight: bold; }
 .player-opponent { color: #52645c; font-size: 0.75rem; }
-.player-points { font-size: 0.8rem; font-weight: bold; margin-top: 0.15rem; }
+.player-points { font-size: 0.8rem; margin-top: 0.15rem; }
+.points-diff { font-weight: bold; }
+.points-diff-positive { color: #06b771; }
+.points-diff-negative { color: #f13106; }

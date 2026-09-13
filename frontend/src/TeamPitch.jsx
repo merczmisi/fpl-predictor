@@ -4,12 +4,27 @@ const POSITION_ORDER = [1, 2, 3, 4]; // 1 gk, 2 def, 3 mid, 4 fwd
 const POSITION_LABELS = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
 
 function PlayerCard({ player }) {
+  const diff = player.event_started
+    ? player.event_points - player.expected_points
+    : null;
+
   return (
     <div className={`player-card position-${player.element_type}`}>
       <div className="player-shirt" aria-hidden="true" />
       <div className="player-name">{player.web_name}</div>
-      <div className="player-opponent">{player.next_opponent || "-"}</div>
-      <div className="player-points">{player.expected_points.toFixed(1)}</div>
+      <div className="player-points">
+        xP: {player.expected_points.toFixed(1)}
+        {diff !== null && (
+          <span className={`points-diff ${diff >= 0 ? "points-diff-positive" : "points-diff-negative"}`}>
+            {" "}({diff >= 0 ? "+" : ""}{diff.toFixed(1)})
+          </span>
+        )}
+      </div>
+      {player.event_started ? (
+        <div className="player-points">{player.event_points}</div>
+      ) : (
+        <div className="player-opponent">{player.next_opponent || "-"}</div>
+      )}
     </div>
   );
 }

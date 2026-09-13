@@ -9,6 +9,7 @@ from fpl_draft.features import (
     compute_base_points,
     apply_fdr_multiplier,
     compute_expected_points_from_df,
+    get_fixture_started,
     get_next_opponent,
     rank_players_by_position,
 )
@@ -110,7 +111,8 @@ def compute_expected_points_for_entry_from_my_team(
         entry_id = entry_ids[0]
 
     game = api.get_game(client)
-    event_id = game["next_event"]
+    current_event_finished = game["current_event_finished"]
+    event_id = game["next_event"] if current_event_finished else game["current_event"]
 
     player_ids = api.get_my_team_ids(client, entry_id)
 
@@ -128,6 +130,10 @@ def compute_expected_points_for_entry_from_my_team(
         lambda team_id: get_next_opponent(
             team_id, fixtures, team_names, include_venue=True
         )
+    )
+    
+    selected["event_started"] = selected["team"].apply(
+        lambda team_id: get_fixture_started(team_id, fixtures)
     )
 
     # Ensure numeric columns

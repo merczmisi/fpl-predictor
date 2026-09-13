@@ -72,6 +72,8 @@ export default function App() {
       id: p.id,
       web_name: p.web_name || `${p.first_name || ""} ${p.second_name || ""}`.trim(),
       element_type: Number(p.element_type) || 0,
+      event_started: p.event_started ?? null,
+      event_points: Number(p.event_points || 0),
       next_opponent: p.next_opponent || null,
       expected_points: Number(p.expected_points || 0),
     }));
@@ -132,6 +134,10 @@ export default function App() {
         <TeamPitch starting={starting} subs={subs} />
       </section>
 
+      <div style={{ marginTop: "1rem", fontWeight: "bold" }}>
+        Total expected points (first 11): {totalFirst11}
+      </div>
+
       <section className="table">
         <h2>Players (sorted by expected_points)</h2>
         <table>
@@ -160,10 +166,6 @@ export default function App() {
             ))}
           </tbody>
         </table>
-
-        <div style={{ marginTop: "1rem", fontWeight: "bold" }}>
-          Total expected points (first 11): {totalFirst11}
-        </div>
       </section>
     </div>
   );
