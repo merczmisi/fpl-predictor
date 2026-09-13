@@ -7,16 +7,24 @@ function PlayerCard({ player }) {
   const diff = player.event_started
     ? player.event_points - player.expected_points
     : null;
+  const isGoalkeeper = player.element_type === 1;
+  const shirtSrc = player.team_code
+    ? `/shirts/shirt_${player.team_code}${isGoalkeeper ? "_1" : ""}.webp`
+    : null;
 
   return (
     <div className={`player-card position-${player.element_type}`}>
-      {player.team_code ? (
+      {shirtSrc ? (
         <img
           className="player-shirt"
-          src={`/shirts/shirt_${player.team_code}.webp`}
+          src={shirtSrc}
           alt=""
-          // Fall back to the plain colored placeholder if a kit image is missing.
+          // Goalkeeper shirt missing: fall back to the outfield shirt, then the colored placeholder.
           onError={(e) => {
+            if (isGoalkeeper && e.currentTarget.src.endsWith("_1.webp")) {
+              e.currentTarget.src = `/shirts/shirt_${player.team_code}.webp`;
+              return;
+            }
             e.currentTarget.style.display = "none";
             e.currentTarget.nextElementSibling?.classList.remove("player-shirt-hidden");
           }}

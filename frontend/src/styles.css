@@ -78,6 +78,15 @@ button:disabled {
 	text-align: center;
 }
 
+.player-details-container {
+	background: rgba(255, 255, 255, 0.92);
+	border-radius: 6px;
+	color: #18231e;
+	/* min-width: 90px; */
+	padding: 0.5rem 0.4rem;
+	text-align: center;
+}
+
 .player-shirt {
 	/* background: #1e6f5c; */
 	border-radius: 3px;
