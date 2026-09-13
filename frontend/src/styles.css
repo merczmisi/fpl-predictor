@@ -1,7 +1,7 @@
 body {
 	background: #f4f7f5;
 	color: #18231e;
-	font-family: Georgia, "Times New Roman", serif;
+	font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", ui-monospace, monospace;
 	margin: 0;
 	padding: 2rem;
 }
@@ -34,8 +34,6 @@ button:disabled {
 .table table { background: white; border-collapse: collapse; min-width: 800px; width: 100%; }
 .table th,
 .table td { border-bottom: 1px solid #dbe5df; padding: 0.55rem; text-align: left; }
-
-.pitch-section { max-width: 1000px; }
 
 .pitch {
 	background: linear-gradient(#2e9e5b, #1e6f5c);
@@ -70,7 +68,6 @@ button:disabled {
 }
 
 .player-card {
-	background: rgba(255, 255, 255, 0.92);
 	border-radius: 6px;
 	color: #18231e;
 	min-width: 90px;
@@ -82,18 +79,37 @@ button:disabled {
 	background: rgba(255, 255, 255, 0.92);
 	border-radius: 6px;
 	color: #18231e;
-	/* min-width: 90px; */
-	padding: 0.5rem 0.4rem;
+	margin-top: 0.35rem;
+	padding: 0.35rem 0.6rem;
 	text-align: center;
+	width: 120px;
 }
 
 .player-shirt {
-	/* background: #1e6f5c; */
 	border-radius: 3px;
-	/* height: 86px; */
 	margin: 0 auto 0.35rem;
 	object-fit: contain;
 	width: 64px;
+}
+
+.points-summary {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 1rem;
+}
+
+.total-points,
+.total-expected-points {
+	font-weight: bold;
+}
+
+.total-points {
+	font-size: 38px;
+}
+
+.total-expected-points {
+	font-size: 14px;
 }
 
 .player-shirt-hidden { display: none; }

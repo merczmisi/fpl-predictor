@@ -1,6 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import TeamPitch from "./TeamPitch";
 
+// FDR 1 (easy) -> green, FDR 5 (difficult) -> red
+const DIFFICULTY_COLORS = {
+  1: "#2dc937",
+  2: "#99c140",
+  3: "#e7b416",
+  4: "#db7b2b",
+  5: "#cc3232",
+};
+
+function difficultyColor(difficulty) {
+  return DIFFICULTY_COLORS[Number(difficulty)] || "transparent";
+}
+
 export default function App() {
   const [players, setPlayers] = useState([]);
   const [connection, setConnection] = useState("checking");
@@ -96,13 +109,21 @@ export default function App() {
       team: p.team || p.team_name || "",
       element_type: p.element_type || p.position || "",
       next_match_difficulty: p.next_match_difficulty ?? p.fixture_adjusted_points ?? null,
-      chance_of_playing_next_round: p.next_opponent ?? p.chance_of_playing ?? null,
+      chance_of_playing_next_round: p.chance_of_playing_next_round ?? 100,
+      next_opponent: p.next_opponent ?? null,
+      event_points: Number(p.event_points || 0),
     }));
   }, [players]);
 
+  const totalXPFirst11 = useMemo(() => {
+    return starting.reduce((sum, p) => sum + (Number(p.expected_points) || 0), 0);
+  }, [starting]);
+
   const totalFirst11 = useMemo(() => {
-    return selected.slice(0, 11).reduce((sum, p) => sum + (Number(p.expected_points) || 0), 0);
-  }, [selected]);
+    return starting.reduce((sum, p) => sum + (Number(p.event_points) || 0), 0);
+  }, [starting]);
+
+  const pointsDiff = totalFirst11 - totalXPFirst11;
 
   return (
     <div className="app">
@@ -131,43 +152,59 @@ export default function App() {
         {error && <p className="error">{error}</p>}
       </section>
 
-      <section className="pitch-section">
-        <TeamPitch starting={starting} subs={subs} />
-      </section>
+      {players.length > 0 && (
+        <>
+          <div className="points-summary">
+              Latest points
+              <div className="total-points">
+                {totalFirst11.toFixed(1)}
+              </div>
+              <div className="total-expected-points">
+                xP: {totalXPFirst11.toFixed(1)}{" "}
+                <span style={{ color: pointsDiff > 0 ? "green" : pointsDiff < 0 ? "red" : "inherit" }}>
+                  ({pointsDiff > 0 ? "+" : ""}{pointsDiff.toFixed(1)})
+                </span>
+              </div>
+          </div>
 
-      <div style={{ marginTop: "1rem", fontWeight: "bold" }}>
-        Total expected points (first 11): {totalFirst11}
-      </div>
 
-      <section className="table">
-        <h2>Players (sorted by expected_points)</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>id</th>
-              <th>web_name</th>
-              <th>expected_points</th>
-              <th>team</th>
-              <th>element_type</th>
-              <th>next_match_difficulty</th>
-              <th>chance_of_playing_next_round</th>
-            </tr>
-          </thead>
-          <tbody>
-            {selected.map((p) => (
-              <tr key={p.id}>
-                <td>{p.id}</td>
-                <td>{p.web_name}</td>
-                <td>{p.expected_points}</td>
-                <td>{p.team}</td>
-                <td>{p.element_type}</td>
-                <td>{p.next_match_difficulty}</td>
-                <td>{p.chance_of_playing_next_round}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+          <section className="pitch-section">
+            <TeamPitch starting={starting} subs={subs} />
+          </section>
+
+          <section className="table">
+            <h2>Players (sorted by expected_points)</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Expected Points</th>
+                  <th>Next Opponent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selected.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.web_name}</td>
+                    <td>{p.expected_points}</td>
+                    <td>
+                      <span
+                        style={{
+                          backgroundColor: difficultyColor(p.next_match_difficulty),
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {p.next_opponent}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </>
+      )}
     </div>
   );
 }

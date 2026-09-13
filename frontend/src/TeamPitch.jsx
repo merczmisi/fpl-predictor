@@ -31,20 +31,22 @@ function PlayerCard({ player }) {
         />
       ) : null}
       <div className={`player-shirt player-shirt-fallback ${player.team_code ? "player-shirt-hidden" : ""}`} aria-hidden="true" />
-      <div className="player-name">{player.web_name}</div>
-      <div className="player-points">
-        xP: {player.expected_points.toFixed(1)}
-        {diff !== null && (
-          <span className={`points-diff ${diff >= 0 ? "points-diff-positive" : "points-diff-negative"}`}>
-            {" "}({diff >= 0 ? "+" : ""}{diff.toFixed(1)})
-          </span>
+      <div className="player-details-container">
+        <div className="player-name">{player.web_name}</div>
+        <div className="player-points">
+          xP: {player.expected_points.toFixed(1)}
+          {diff !== null && (
+            <span className={`points-diff ${diff >= 0 ? "points-diff-positive" : "points-diff-negative"}`}>
+              {" "}({diff >= 0 ? "+" : ""}{diff.toFixed(1)})
+            </span>
+          )}
+        </div>
+        {player.event_started ? (
+          <div className="player-points">{player.event_points}</div>
+        ) : (
+          <div className="player-opponent">{player.next_opponent || "-"}</div>
         )}
       </div>
-      {player.event_started ? (
-        <div className="player-points">{player.event_points}</div>
-      ) : (
-        <div className="player-opponent">{player.next_opponent || "-"}</div>
-      )}
     </div>
   );
 }
@@ -60,6 +62,10 @@ export default function TeamPitch({ starting = [], subs = [] }) {
 
   return (
     <div className="pitch">
+      <div className="points">
+        <div className="total-points"></div>
+        <div className="expected-points"></div>
+        </div>
       {rows.map((row, idx) => (
         <div className="pitch-row" key={idx}>
           {row.map((p) => (
