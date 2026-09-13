@@ -62,10 +62,6 @@ export default function TeamPitch({ starting = [], subs = [] }) {
 
   return (
     <div className="pitch">
-      <div className="points">
-        <div className="total-points"></div>
-        <div className="expected-points"></div>
-        </div>
       {rows.map((row, idx) => (
         <div className="pitch-row" key={idx}>
           {row.map((p) => (
