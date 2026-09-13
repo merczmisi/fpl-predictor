@@ -10,7 +10,19 @@ function PlayerCard({ player }) {
 
   return (
     <div className={`player-card position-${player.element_type}`}>
-      <div className="player-shirt" aria-hidden="true" />
+      {player.team_code ? (
+        <img
+          className="player-shirt"
+          src={`/shirts/shirt_${player.team_code}.webp`}
+          alt=""
+          // Fall back to the plain colored placeholder if a kit image is missing.
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+            e.currentTarget.nextElementSibling?.classList.remove("player-shirt-hidden");
+          }}
+        />
+      ) : null}
+      <div className={`player-shirt player-shirt-fallback ${player.team_code ? "player-shirt-hidden" : ""}`} aria-hidden="true" />
       <div className="player-name">{player.web_name}</div>
       <div className="player-points">
         xP: {player.expected_points.toFixed(1)}

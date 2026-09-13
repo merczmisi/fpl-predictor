@@ -72,6 +72,7 @@ export default function App() {
       id: p.id,
       web_name: p.web_name || `${p.first_name || ""} ${p.second_name || ""}`.trim(),
       element_type: Number(p.element_type) || 0,
+      team_code: p.team_code || null,
       event_started: p.event_started ?? null,
       event_points: Number(p.event_points || 0),
       next_opponent: p.next_opponent || null,

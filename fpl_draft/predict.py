@@ -62,10 +62,12 @@ def compute_expected_points_for_entry(
     selected = players.set_index("id").loc[player_ids].reset_index()
 
     team_names = teams.set_index("id")["name"].to_dict()
+    team_codes = teams.set_index("id")["code"].to_dict()
 
     selected["next_opponent"] = selected["team"].apply(
         lambda team_id: get_next_opponent(team_id, fixtures, team_names)
     )
+    selected["team_code"] = selected["team"].map(team_codes)
 
     # Ensure numeric columns
     selected["form"] = pd.to_numeric(selected["form"], errors="coerce")
@@ -125,13 +127,15 @@ def compute_expected_points_for_entry_from_my_team(
     selected = players.set_index("id").loc[player_ids].reset_index()
 
     team_names = teams.set_index("id")["name"].to_dict()
+    team_codes = teams.set_index("id")["code"].to_dict()
 
     selected["next_opponent"] = selected["team"].apply(
         lambda team_id: get_next_opponent(
             team_id, fixtures, team_names, include_venue=True
         )
     )
-    
+    selected["team_code"] = selected["team"].map(team_codes)
+
     selected["event_started"] = selected["team"].apply(
         lambda team_id: get_fixture_started(team_id, fixtures)
     )
