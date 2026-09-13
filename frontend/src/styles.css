@@ -30,9 +30,67 @@ button:disabled {
 .connection-error { color: #a0442f; }
 .controls { margin-bottom: 1.5rem; }
 .error { color: #a0442f; margin-bottom: 0; }
-.chart { background: white; max-width: 1000px; padding: 1rem; }
 .table { overflow-x: auto; }
 .table table { background: white; border-collapse: collapse; min-width: 800px; width: 100%; }
 .table th,
 .table td { border-bottom: 1px solid #dbe5df; padding: 0.55rem; text-align: left; }
-.chart { max-width: 1000px }
+
+.pitch-section { max-width: 1000px; }
+
+.pitch {
+	background: linear-gradient(#2e9e5b, #1e6f5c);
+	border-radius: 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+	padding: 1.5rem 1rem;
+}
+
+.pitch-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	justify-content: space-evenly;
+}
+
+.pitch-bench {
+	background: rgba(0, 0, 0, 0.15);
+	border-radius: 6px;
+	margin-top: 0.5rem;
+	padding: 0.75rem 0.5rem;
+}
+
+.bench-label {
+	color: #eef7f1;
+	font-size: 0.85rem;
+	font-weight: bold;
+	margin-bottom: 0.5rem;
+	text-align: center;
+	text-transform: uppercase;
+}
+
+.player-card {
+	background: rgba(255, 255, 255, 0.92);
+	border-radius: 6px;
+	color: #18231e;
+	min-width: 90px;
+	padding: 0.5rem 0.4rem;
+	text-align: center;
+}
+
+.player-shirt {
+	background: #1e6f5c;
+	border-radius: 3px;
+	height: 22px;
+	margin: 0 auto 0.35rem;
+	width: 28px;
+}
+
+.player-card.position-1 .player-shirt { background: #e0c04a; }
+.player-card.position-2 .player-shirt { background: #2f6fd6; }
+.player-card.position-3 .player-shirt { background: #a0442f; }
+.player-card.position-4 .player-shirt { background: #1e6f5c; }
+
+.player-name { font-size: 0.85rem; font-weight: bold; }
+.player-opponent { color: #52645c; font-size: 0.75rem; }
+.player-points { font-size: 0.8rem; font-weight: bold; margin-top: 0.15rem; }

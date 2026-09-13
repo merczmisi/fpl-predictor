@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import ExpectedPointsChart from "./ExpectedPointsChart";
+import TeamPitch from "./TeamPitch";
 
 export default function App() {
   const [players, setPlayers] = useState([]);
@@ -65,6 +65,20 @@ export default function App() {
     }
   }
 
+  // Formation view preserves the original API order: first 11 are the
+  // starting XI, the remaining players are substitutes.
+  const { starting, subs } = useMemo(() => {
+    const normalized = players.map((p) => ({
+      id: p.id,
+      web_name: p.web_name || `${p.first_name || ""} ${p.second_name || ""}`.trim(),
+      element_type: Number(p.element_type) || 0,
+      next_opponent: p.next_opponent || null,
+      expected_points: Number(p.expected_points || 0),
+    }));
+
+    return { starting: normalized.slice(0, 11), subs: normalized.slice(11, 15) };
+  }, [players]);
+
   // Derive a sorted, selected columns view similar to the pandas snippet
   const selected = useMemo(() => {
     if (!players || players.length === 0) return [];
@@ -114,8 +128,8 @@ export default function App() {
         {error && <p className="error">{error}</p>}
       </section>
 
-      <section className="chart">
-        <ExpectedPointsChart data={selected} />
+      <section className="pitch-section">
+        <TeamPitch starting={starting} subs={subs} />
       </section>
 
       <section className="table">

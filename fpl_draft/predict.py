@@ -9,6 +9,7 @@ from fpl_draft.features import (
     compute_base_points,
     apply_fdr_multiplier,
     compute_expected_points_from_df,
+    get_next_opponent,
     rank_players_by_position,
 )
 
@@ -61,17 +62,9 @@ def compute_expected_points_for_entry(
 
     team_names = teams.set_index("id")["name"].to_dict()
 
-    def get_next_opponent(team_id: int) -> str | None:
-        for fixture in fixtures:
-            home_team = fixture.get("team_h")
-            away_team = fixture.get("team_a")
-            if team_id == home_team:
-                return team_names.get(away_team)
-            if team_id == away_team:
-                return team_names.get(home_team)
-        return None
-
-    selected["next_opponent"] = selected["team"].apply(get_next_opponent)
+    selected["next_opponent"] = selected["team"].apply(
+        lambda team_id: get_next_opponent(team_id, fixtures, team_names)
+    )
 
     # Ensure numeric columns
     selected["form"] = pd.to_numeric(selected["form"], errors="coerce")
@@ -131,17 +124,11 @@ def compute_expected_points_for_entry_from_my_team(
 
     team_names = teams.set_index("id")["name"].to_dict()
 
-    def get_next_opponent(team_id: int) -> str | None:
-        for fixture in fixtures:
-            home_team = fixture.get("team_h")
-            away_team = fixture.get("team_a")
-            if team_id == home_team:
-                return team_names.get(away_team)
-            if team_id == away_team:
-                return team_names.get(home_team)
-        return None
-
-    selected["next_opponent"] = selected["team"].apply(get_next_opponent)
+    selected["next_opponent"] = selected["team"].apply(
+        lambda team_id: get_next_opponent(
+            team_id, fixtures, team_names, include_venue=True
+        )
+    )
 
     # Ensure numeric columns
     selected["form"] = pd.to_numeric(selected["form"], errors="coerce")

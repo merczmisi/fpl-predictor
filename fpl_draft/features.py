@@ -11,6 +11,31 @@ POSITIONS = {
 }
 
 
+def get_next_opponent(
+    team_id: int,
+    fixtures: list[dict],
+    team_names: Dict[int, str],
+    include_venue: bool = True,
+) -> str | None:
+    """Resolve the name of the next opponent for ``team_id``.
+
+    Scans ``fixtures`` (as returned by the event-fixtures endpoint) for the
+    first fixture involving ``team_id`` and returns the opposing team's name.
+    When ``include_venue`` is set, appends " (H)"/" (A)" to indicate whether
+    ``team_id`` plays at home or away.
+    """
+    for fixture in fixtures:
+        home_team = fixture.get("team_h")
+        away_team = fixture.get("team_a")
+        if team_id == home_team:
+            opponent = team_names.get(away_team)
+            return f"{opponent} (A)" if include_venue else opponent
+        if team_id == away_team:
+            opponent = team_names.get(home_team)
+            return f"{opponent} (H)" if include_venue else opponent
+    return None
+
+
 def normalize_league_details(payload: dict, game: dict) -> pd.DataFrame:
     """Convert a draft league-details payload into a tidy standings DataFrame.
 
