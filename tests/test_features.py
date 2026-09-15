@@ -1,10 +1,102 @@
 import pandas as pd
+import pytest
 
 from fpl_draft.features import (
     compute_base_points,
     apply_fdr_multiplier,
     compute_expected_points_from_df,
+    normalize_league_details,
+    rank_players_by_position,
 )
+from fpl_draft.storage import save_league_history, load_league_history, load_league_history_pivot
+
+
+def test_normalize_league_details():
+    payload = {
+        "league": {"id": 55729, "name": "Test League", "current_event": 99},
+        "league_entries": [
+            {"entry_id": 293299, "id": 295995, "entry_name": "Alpha"},
+            {"entry_id": 299263, "id": 302017, "entry_name": "Beta"},
+        ],
+        "standings": [
+            {
+                "league_entry": 295995,
+                "rank": 1,
+                "total": 61,
+                "points_for": 90,
+                "points_against": 84,
+            },
+            {
+                "league_entry": 302017,
+                "rank": 2,
+                "total": 58,
+                "points_for": 81,
+                "points_against": 78,
+            },
+        ],
+    }
+    game = {"current_event": 3}
+
+    df = normalize_league_details(payload, game)
+
+    assert list(df.columns) == [
+        "league_id",
+        "league_name",
+        "gameweek",
+        "entry_id",
+        "entry_name",
+        "position",
+        "total",
+        "points_for",
+        "points_against",
+    ]
+    assert df.loc[df.entry_id == 293299, "position"].iloc[0] == 1
+    assert df.loc[df.entry_id == 293299, "gameweek"].iloc[0] == 3
+    assert df.loc[df.entry_id == 299263, "entry_name"].iloc[0] == "Beta"
+    assert df.loc[df.entry_id == 293299, "points_for"].iloc[0] == 90
+    assert df.loc[df.entry_id == 293299, "points_against"].iloc[0] == 84
+
+
+def test_save_and_load_league_history(tmp_path):
+    db_path = tmp_path / "league_history.sqlite"
+    payload = {
+        "league": {"id": 55729, "name": "Test League", "current_event": 99},
+        "league_entries": [
+            {"entry_id": 293299, "id": 295995, "entry_name": "Alpha"},
+            {"entry_id": 299263, "id": 302017, "entry_name": "Beta"},
+        ],
+        "standings": [
+            {"league_entry": 295995, "rank": 1, "total": 61, "points_for": 90, "points_against": 84},
+            {"league_entry": 302017, "rank": 2, "total": 58, "points_for": 81, "points_against": 78},
+        ],
+    }
+    game = {"current_event": 3}
+
+    df = normalize_league_details(payload, game)
+    save_league_history(df, str(db_path))
+    save_league_history(df, str(db_path))
+    loaded = load_league_history(55729, str(db_path))
+
+    assert loaded.loc[loaded.entry_id == 293299, "position"].iloc[0] == 1
+    assert loaded.loc[loaded.entry_id == 293299, "entry_name"].iloc[0] == "Alpha"
+    assert loaded["gameweek"].nunique() == 1
+    assert len(loaded) == 2
+    assert set(loaded.columns) == {
+        "league_id",
+        "league_name",
+        "gameweek",
+        "entry_id",
+        "entry_name",
+        "position",
+        "total",
+        "points_for",
+        "points_against",
+    }
+
+    pivot = load_league_history_pivot(55729, str(db_path))
+    assert list(pivot.index) == [3]
+    assert set(pivot.columns) == {"Alpha", "Beta"}
+    assert pivot.loc[3, "Alpha"] == 1
 
 
 def test_feature_pipeline_simple():
@@ -49,3 +141,32 @@ def test_feature_pipeline_simple():
 
     assert df.loc[df.id == 1, "expected_points"].iloc[0] == exp1
     assert df.loc[df.id == 2, "expected_points"].iloc[0] == exp2
+
+
+def test_rank_players_by_position_converts_api_values_and_sorts():
+    df = pd.DataFrame(
+        [
+            {"id": 1, "web_name": "Keeper", "form": "5.0", "points_per_game": "3.0", "team": 1, "element_type": 1},
+            {"id": 2, "web_name": "Defender", "form": "9.0", "points_per_game": "1.0", "team": 2, "element_type": 2},
+            {"id": 3, "web_name": "Midfielder", "form": "4.0", "points_per_game": "6.0", "team": 3, "element_type": 3},
+        ]
+    )
+
+    result = rank_players_by_position(df, "mid", n=20)
+
+    assert list(result["id"]) == [3]
+    assert result.loc[0, "element_type"] == "mid"
+    assert result.loc[0, "base_points"] == pytest.approx(4.8)
+
+    all_positions = rank_players_by_position(df, n=2)
+
+    assert list(all_positions["id"]) == [2, 3]
+
+
+def test_rank_players_by_position_rejects_invalid_position():
+    try:
+        rank_players_by_position(pd.DataFrame(), "str")
+    except ValueError as exc:
+        assert "Invalid position" in str(exc)
+    else:
+        raise AssertionError("Expected invalid positions to raise ValueError")

@@ -35,3 +35,74 @@ def test_get_player_ids_and_next_difficulty():
 
     diff = api.get_next_match_difficulty(client, 10)
     assert diff == 3
+
+
+def test_get_league_details():
+    from fpl_draft import api
+
+    league_url = "https://draft.premierleague.com/api/league/55729/details"
+    client = DummyClient(
+        {
+            league_url: {
+                "league": {"id": 55729, "name": "Test League"},
+                "league_entries": [{"entry_id": 1, "entry_name": "Alpha"}],
+                "matches": [{"event": 1, "league_entry_1": 1, "league_entry_2": 2}],
+            }
+        }
+    )
+
+    league = api.get_league_details(client, 55729)
+
+    assert league["league"]["id"] == 55729
+    assert league["league_entries"][0]["entry_name"] == "Alpha"
+    assert league["matches"][0]["event"] == 1
+
+
+def test_get_bootstrap_dynamic_entry_set():
+    from fpl_draft import api
+
+    url = "https://draft.premierleague.com/api/bootstrap-dynamic"
+    client = DummyClient({url: {"player": {"entry_set": [299995]}}})
+
+    entry_set = api.get_my_entry_set(client)
+
+    assert entry_set == [299995]
+
+
+def test_get_game():
+    from fpl_draft import api
+
+    url = "https://draft.premierleague.com/api/game"
+    game = {
+        "current_event": 3,
+        "current_event_finished": False,
+        "next_event": 4,
+        "processing_status": "n",
+        "trades_time_for_approval": True,
+        "waivers_processed": False,
+    }
+    client = DummyClient({url: game})
+
+    result = api.get_game(client)
+
+    assert result == game
+
+
+def test_get_event_fixtures():
+    from fpl_draft import api
+
+    url = "https://draft.premierleague.com/api/event/3/fixtures"
+    fixtures = [
+        {
+            "id": 29,
+            "event": 3,
+            "team_a": 6,
+            "team_h": 1,
+            "kickoff_time": "2026-09-06T15:30:00Z",
+        }
+    ]
+    client = DummyClient({url: fixtures})
+
+    result = api.get_event_fixtures(client, 3)
+
+    assert result == fixtures

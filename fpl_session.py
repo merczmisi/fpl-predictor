@@ -187,10 +187,7 @@ class FPLSession:
                 "Refreshing browser authentication..."
             )
 
-            self.access_token = None
-            self.expires_at = 0
-
-            token = self._refresh_through_browser(
+            token = self.auth.refresh_authenticated(
                 entry_id=entry_id,
             )
 
@@ -298,11 +295,28 @@ class FPLSession:
 
     def get_my_team(
         self,
-        entry_id: int
+        entry_id: int | None = None,
     ):
+        """Fetch the current team, resolving the draft entry from bootstrap data when needed."""
+        if entry_id is None:
+            entry_ids = self.get_my_team_id()
+            if not entry_ids:
+                raise ValueError("No draft entry IDs were returned by bootstrap-dynamic.")
+            entry_id = entry_ids[0]
+
         return (
             __import__("fpl_draft.api", fromlist=["get_my_team"])  # lazy import
             .get_my_team(self, entry_id)
+        )
+
+    def get_league_details(
+        self,
+        league_id: int,
+    ):
+        """Fetch the draft league details payload for a league ID."""
+        return (
+            __import__("fpl_draft.api", fromlist=["get_league_details"])  # lazy import
+            .get_league_details(self, league_id)
         )
 
     # Get next match difficulty for each player
@@ -312,8 +326,8 @@ class FPLSession:
     ):
         # Delegate to API wrapper which uses the `self` client's `.get`.
         return (
-            __import__("fpl_draft.api", fromlist=["get_next_match_difficulty"])  # lazy import
-            .get_next_match_difficulty(self, player_id)
+            __import__("fpl_draft.api", fromlist=["get_opponent_difficulty"])  # lazy import
+            .get_opponent_difficulty(self, player_id, event_id)
         )
 
     def get_bootstrap_static(self):
@@ -329,6 +343,56 @@ class FPLSession:
         response.raise_for_status()
         return response.json()
 
+    def get_game(self):
+        """Fetch the current Draft game and event status."""
+        return __import__(
+            "fpl_draft.api", fromlist=["get_game"]
+        ).get_game(self)
+
+    def get_players_on_form_by_position(
+        self,
+        position: str,
+        n: int = 20,
+    ) -> pd.DataFrame:
+        """Return the top players at a position by form and points per game."""
+        return __import__(
+            "fpl_draft.predict", fromlist=["get_players_by_position"]
+        ).get_players_on_form_by_position(self, position, n=n)
+        
+    def get_base_points_for_my_team(
+        self,
+        entry_id: int
+    ) -> pd.DataFrame:
+        """Return the base-points for my team."""
+        return __import__(
+            "fpl_draft.predict", fromlist=["get_players_by_position"]
+        ).get_my_players_by_position(self, entry_id=entry_id)
+
+    def get_my_team_id(self):
+        """Fetch the current draft entry IDs from the bootstrap-dynamic payload.
+
+        This returns the raw `player.entry_set` list, which is used by callers that
+        need to resolve the active entry without passing an explicit ID.
+        """
+        return (
+            __import__("fpl_draft.api", fromlist=["get_bootstrap_dynamic_entry_set"])  # lazy import
+            .get_bootstrap_dynamic_entry_set(self)
+        )
+
+    def sync_league_history(
+        self,
+        league_id: int,
+        db_path: str | Path = "~/.fpl/league_history.sqlite",
+    ):
+        """Fetch a league standings snapshot, normalize it, and persist it."""
+        from fpl_draft.features import normalize_league_details
+        from fpl_draft.storage import save_league_history
+
+        payload = self.get_league_details(league_id)
+        game = self.get_game()
+        df = normalize_league_details(payload, game)
+        save_league_history(df, db_path=db_path)
+        return df
 
     def get_expected_points(
         self,
@@ -341,3 +405,13 @@ class FPLSession:
         return __import__(
             "fpl_draft.predict", fromlist=["compute_expected_points_for_entry"]
         ).compute_expected_points_for_entry(self, entry_id, event_id)
+        
+    def get_expected_points_for_my_team(
+        self
+    ):
+        """Delegate expected points computation to the `predict` orchestrator."""
+
+        # Lazy import to avoid circular imports during module import time.
+        return __import__(
+            "fpl_draft.predict", fromlist=["compute_expected_points_for_entry_from_my_team"]
+        ).compute_expected_points_for_entry_from_my_team(self)

@@ -68,3 +68,74 @@ def test_fplsession_expected_points_integration():
     assert "expected_points" in df.columns
     assert df.loc[df.id == 1, "expected_points"].iloc[0] >= 0
     assert df.loc[df.id == 2, "expected_points"].iloc[0] >= 0
+
+
+def test_fplsession_get_my_team_uses_current_entry_set_when_no_id_given():
+    from fpl_session import FPLSession
+
+    class DummyAuth:
+        def ensure_authenticated(self, entry_id=0):
+            return "mock-token"
+
+        def start(self):
+            return None
+
+        def close(self):
+            return None
+
+    class DummyHttpClient:
+        def __init__(self):
+            self.calls = []
+
+        def request(self, method, url, headers=None, **kwargs):
+            self.calls.append((method, url, headers))
+            if url == "https://draft.premierleague.com/api/bootstrap-dynamic":
+                return DummyResp(200, {"player": {"entry_set": [12345]}})
+            if url == "https://draft.premierleague.com/api/entry/12345/my-team":
+                return DummyResp(200, {"picks": [{"element": 10}]})
+            return DummyResp(404, {})
+
+    s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
+    s.auth = DummyAuth()
+    s.http = DummyHttpClient()
+
+    team = s.get_my_team()
+
+    assert team["picks"][0]["element"] == 10
+
+
+def test_fplsession_refreshes_auth_after_401():
+    from fpl_session import FPLSession
+
+    class DummyAuth:
+        def __init__(self):
+            self.refresh_calls = []
+
+        def ensure_authenticated(self, entry_id=0):
+            return "stale-token"
+
+        def refresh_authenticated(self, entry_id=0):
+            self.refresh_calls.append(entry_id)
+            return "fresh-token"
+
+    class DummyHttpClient:
+        def __init__(self):
+            self.calls = []
+
+        def request(self, method, url, headers=None, **kwargs):
+            self.calls.append((method, url, dict(headers or {})))
+            if len(self.calls) == 1:
+                return DummyResp(401, {})
+            return DummyResp(200, {"ok": True})
+
+    session = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
+    session.auth = DummyAuth()
+    session.http = DummyHttpClient()
+
+    response = session.get(
+        "https://draft.premierleague.com/api/entry/42/my-team"
+    )
+
+    assert response.status_code == 200
+    assert session.auth.refresh_calls == [42]
+    assert session.http.calls[1][2]["X-Api-Authorization"] == "Bearer fresh-token"

@@ -3,6 +3,151 @@ from typing import Dict
 import pandas as pd
 
 
+POSITIONS = {
+    1: "gk",
+    2: "def",
+    3: "mid",
+    4: "fwd",
+}
+
+
+def get_next_opponent(
+    team_id: int,
+    fixtures: list[dict],
+    team_names: Dict[int, str],
+) -> str | None:
+    """Resolve the name of the next opponent for ``team_id``.
+
+    Scans ``fixtures`` (as returned by the event-fixtures endpoint) for the
+    first fixture involving ``team_id`` and returns the opposing team's name,
+    with " (H)"/" (A)" appended to indicate whether ``team_id`` plays at home
+    or away.
+    """
+    for fixture in fixtures:
+        home_team = fixture.get("team_h")
+        away_team = fixture.get("team_a")
+        if team_id == home_team:
+            opponent = team_names.get(away_team)
+            return f"{opponent} (H)"
+        if team_id == away_team:
+            opponent = team_names.get(home_team)
+            return f"{opponent} (A)"
+    return None
+
+
+def get_fixture_started(team_id: int, fixtures: list[dict]) -> bool | None:
+    """Return the `started` flag of the first fixture involving `team_id`.
+
+    Returns `None` if no fixture for `team_id` is found in `fixtures`.
+    """
+    for fixture in fixtures:
+        if team_id in (fixture.get("team_h"), fixture.get("team_a")):
+            return fixture.get("started")
+    return None
+
+
+def normalize_league_details(payload: dict, game: dict) -> pd.DataFrame:
+    """Convert a draft league-details payload into a tidy standings DataFrame.
+
+    The returned rows are one per league participant for the current gameweek,
+    with columns that map directly to a position-over-time chart. The gameweek
+    comes from the Draft game payload's ``current_event`` field.
+    """
+    league = payload.get("league") or {}
+    league_entries = payload.get("league_entries") or []
+    standings = payload.get("standings") or []
+
+    if not standings and not league_entries:
+        return pd.DataFrame(
+            columns=[
+                "league_id",
+                "league_name",
+                "gameweek",
+                "entry_id",
+                "entry_name",
+                "position",
+                "total",
+                "points_for",
+                "points_against",
+            ]
+        )
+
+    entry_meta_by_internal_id = {}
+    for entry in league_entries:
+        public_entry_id = entry.get("entry_id")
+        internal_id = entry.get("id")
+        entry_name = entry.get("entry_name")
+
+        if public_entry_id is not None:
+            entry_meta_by_internal_id[int(public_entry_id)] = {
+                "entry_name": entry_name,
+                "entry_id": int(public_entry_id),
+            }
+
+        if internal_id is not None:
+            entry_meta_by_internal_id[int(internal_id)] = {
+                "entry_name": entry_name,
+                "entry_id": int(public_entry_id) if public_entry_id is not None else int(internal_id),
+            }
+
+    rows = []
+    gameweek = game["current_event"]
+
+    for item in standings:
+        standing_entry_id = item.get("league_entry") or item.get("entry_id")
+        if standing_entry_id is None:
+            continue
+
+        standing_entry_id = int(standing_entry_id)
+        entry_meta = entry_meta_by_internal_id.get(standing_entry_id) or {}
+
+        entry_name = (
+            entry_meta.get("entry_name")
+            or item.get("entry_name")
+            or item.get("league_entry_name")
+        )
+        resolved_entry_id = (
+            entry_meta.get("entry_id")
+            or item.get("entry_id")
+            or item.get("league_entry")
+            or standing_entry_id
+        )
+
+        rows.append(
+            {
+                "league_id": league.get("id"),
+                "league_name": league.get("name"),
+                "gameweek": gameweek,
+                "entry_id": int(resolved_entry_id),
+                "entry_name": entry_name,
+                "position": item.get("rank"),
+                "total": item.get("total"),
+                "points_for": item.get("points_for"),
+                "points_against": item.get("points_against"),
+            }
+        )
+
+    df = pd.DataFrame(rows)
+
+    required = [
+        "league_id",
+        "league_name",
+        "gameweek",
+        "entry_id",
+        "entry_name",
+        "position",
+        "total",
+        "points_for",
+        "points_against",
+    ]
+
+    for col in required:
+        if col not in df.columns:
+            df[col] = None
+
+    return df[required]
+
+
 def compute_base_points(df: pd.DataFrame) -> pd.DataFrame:
     """Compute `base_points` = 0.6*form + 0.4*points_per_game.
 
@@ -12,6 +157,50 @@ def compute_base_points(df: pd.DataFrame) -> pd.DataFrame:
         0.6 * df["form"] + 0.4 * df["points_per_game"]
     )
     return df
+
+
+def rank_players_by_position(
+    df: pd.DataFrame, position: str | None = None, n: int = 20
+) -> pd.DataFrame:
+    """Return the top ``n`` players ranked by form and points per game."""
+    if position is not None:
+        position = position.lower()
+        valid_positions = set(POSITIONS.values())
+        if position not in valid_positions:
+            choices = ", ".join(sorted(valid_positions))
+            raise ValueError(f"Invalid position '{position}'. Choose from: {choices}")
+
+    if n < 0:
+        raise ValueError("n must be non-negative")
+
+    ranked = df.copy()
+    for column in ("form", "points_per_game"):
+        ranked[column] = pd.to_numeric(ranked[column], errors="coerce")
+
+    ranked = compute_base_points(ranked)
+    ranked["element_type"] = pd.to_numeric(
+        ranked["element_type"], errors="coerce"
+    ).map(POSITIONS)
+
+    if position is not None:
+        ranked = ranked[ranked["element_type"] == position]
+
+    columns = [
+        "id",
+        "web_name",
+        "base_points",
+        "team",
+        "element_type",
+        "form",
+        "points_per_game",
+    ]
+    return (
+        ranked
+        .sort_values("base_points", ascending=False, na_position="last")
+        .head(n)
+        .reindex(columns=columns)
+        .reset_index(drop=True)
+    )
 
 
 def apply_fdr_multiplier(
