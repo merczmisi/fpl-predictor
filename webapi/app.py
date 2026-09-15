@@ -21,7 +21,7 @@ from fpl_draft.predict import (
 from fpl_draft.api import get_bootstrap_dynamic_entry_set
 from fpl_draft.auth import BrowserAuth
 from fpl_draft.http import FplHttpClient
-from webapi.launcher import get_auth_token
+from webapi.launcher import get_auth_status, get_auth_token
 
 
 logger = logging.getLogger(__name__)
@@ -49,12 +49,16 @@ def health() -> dict:
 
 
 def _auth_status() -> dict:
-    """Return local FPL connection state without exposing credentials."""
+    """Return local FPL connection state without exposing credentials.
+
+    Non-interactive: only validates an existing profile token and never
+    opens a visible browser or waits on the login flow.
+    """
     try:
-        get_auth_token()
+        token = get_auth_status()
     except Exception:
         return {"connected": False, "mode": "local"}
-    return {"connected": True, "mode": "local"}
+    return {"connected": bool(token), "mode": "local"}
 
 
 @app.get("/auth/status")

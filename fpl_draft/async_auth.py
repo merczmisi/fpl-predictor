@@ -130,7 +130,8 @@ class AsyncBrowserAuth:
             await asyncio.sleep(0.25)
         return False
 
-    async def ensure_authenticated(self) -> str:
+    async def _try_silent(self) -> str | None:
+        """Attempt to obtain a valid token without opening an interactive login prompt."""
         try:
             await self._start(self.headless)
             if await self._sync_token() and self._token_valid():
@@ -143,6 +144,20 @@ class AsyncBrowserAuth:
                 pass
         finally:
             await self.close()
+        return None
+
+    async def check_authenticated(self) -> str | None:
+        """Validate an existing profile session without opening a visible browser.
+
+        Returns the access token if the profile already holds a valid session,
+        or None if an interactive login (via `ensure_authenticated`) is required.
+        """
+        return await self._try_silent()
+
+    async def ensure_authenticated(self) -> str:
+        token = await self._try_silent()
+        if token:
+            return token
 
         await self._start(False)
         if await self._wait_for_token(self.LOGIN_TIMEOUT):

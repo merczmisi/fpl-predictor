@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 import uuid
 import webbrowser
+from typing import Optional
 
 import uvicorn
 
@@ -49,6 +50,19 @@ def run_auth_worker() -> int:
     return 0
 
 
+def run_auth_check_worker() -> int:
+    """Run async Playwright in a non-interactive mode that only validates an existing profile token."""
+    _configure_bundled_playwright()
+    import asyncio
+    from fpl_draft.async_auth import AsyncBrowserAuth
+
+    token = asyncio.run(
+        AsyncBrowserAuth(headless=os.environ.get("FPL_HEADLESS", "1") != "0").check_authenticated()
+    )
+    print(token or "", flush=True)
+    return 0
+
+
 # Only one auth worker may use the shared Chromium profile at a time.
 _auth_worker_lock = threading.Lock()
 
@@ -70,6 +84,27 @@ def get_auth_token() -> str:
     if not token:
         raise RuntimeError("FPL authentication worker returned no token.")
     return token
+
+
+def get_auth_status() -> Optional[str]:
+    """Check for an existing valid FPL session without launching an interactive login.
+
+    Returns the access token if the shared profile already holds a valid session,
+    or None if the caller should prompt the user to connect via `get_auth_token()`.
+    """
+    if getattr(sys, "frozen", False):
+        command = [sys.executable, "--auth-check"]
+    else:
+        command = [sys.executable, "-m", "webapi.launcher", "--auth-check"]
+
+    with _auth_worker_lock:
+        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+
+    if completed.returncode != 0:
+        return None
+
+    token = completed.stdout.strip().splitlines()[-1] if completed.stdout.strip() else ""
+    return token or None
 
 
 def _poll_health(host: str, port: int, timeout: float) -> dict | None:
@@ -138,9 +173,12 @@ def main() -> None:
     parser.add_argument("--port", default=DEFAULT_PORT, type=int)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--auth-worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--auth-check", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.auth_worker:
         raise SystemExit(run_auth_worker())
+    if args.auth_check:
+        raise SystemExit(run_auth_check_worker())
     run(host=args.host, port=args.port, open_browser=not args.no_browser)
 
 
