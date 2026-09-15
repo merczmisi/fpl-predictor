@@ -108,7 +108,7 @@ export default function App() {
       expected_points: Number(p.expected_points || 0),
       team: p.team || p.team_name || "",
       element_type: p.element_type || p.position || "",
-      next_match_difficulty: p.next_match_difficulty ?? p.fixture_adjusted_points ?? null,
+      next_match_difficulty: p.next_match_difficulty ?? null,
       chance_of_playing_next_round: p.chance_of_playing_next_round ?? 100,
       next_opponent: p.next_opponent ?? null,
       event_points: Number(p.event_points || 0),
