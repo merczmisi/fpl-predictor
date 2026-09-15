@@ -58,6 +58,32 @@ def test_get_league_details():
     assert league["matches"][0]["event"] == 1
 
 
+def test_get_fixtures():
+    from fpl_draft import api
+
+    fixtures_url = "https://fantasy.premierleague.com/api/fixtures/"
+    client = DummyClient(
+        {
+            fixtures_url: [
+                {
+                    "id": 41,
+                    "event": 5,
+                    "team_h": 4,
+                    "team_a": 6,
+                    "team_h_difficulty": 4,
+                    "team_a_difficulty": 3,
+                }
+            ]
+        }
+    )
+
+    fixtures = api.get_future_fixtures(client)
+
+    assert fixtures[0]["id"] == 41
+    assert fixtures[0]["team_h"] == 4
+
+
+
 def test_get_bootstrap_dynamic_entry_set():
     from fpl_draft import api
 

@@ -349,6 +349,15 @@ class FPLSession:
             "fpl_draft.api", fromlist=["get_game"]
         ).get_game(self)
 
+    def get_future_fixtures(
+        self,
+        event_id: int | None = None,
+    ):
+        """Fetch upcoming fixtures from the fantasy `fixtures` endpoint."""
+        return __import__(
+            "fpl_draft.api", fromlist=["get_future_fixtures"]
+        ).get_future_fixtures(self, event_id)
+
     def get_players_on_form_by_position(
         self,
         position: str,
