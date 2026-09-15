@@ -36,6 +36,9 @@ class FplHttpClient:
 
         # If token expired, ask token provider again and retry once.
         if getattr(response, "status_code", None) == 401:
+            invalidate = getattr(self._token_provider, "invalidate", None)
+            if callable(invalidate):
+                invalidate()
             token = self._token_provider(entry_id)
             headers["X-Api-Authorization"] = f"Bearer {token}"
             response = self._session.request(method, url, headers=headers, **kwargs)

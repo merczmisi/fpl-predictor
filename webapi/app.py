@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import logging
 import os
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
@@ -26,6 +29,97 @@ from webapi.launcher import get_auth_status, get_auth_token
 
 logger = logging.getLogger(__name__)
 browser_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="fpl-browser")
+
+_ACCESS_TOKEN_SAFETY_MARGIN = 60
+_DEFAULT_TOKEN_TTL = 300  # fallback when the JWT `exp` claim can't be decoded
+_TOKEN_CACHE_PATH = Path("~/.fpl/token_cache.json").expanduser()
+
+
+def _decode_jwt_expiry(token: str) -> Optional[float]:
+    """Best-effort extraction of the `exp` claim from a JWT access token."""
+    try:
+        payload_segment = token.split(".")[1]
+        padding = "=" * (-len(payload_segment) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_segment + padding))
+        return float(payload["exp"])
+    except Exception:
+        return None
+
+
+def _load_disk_token_cache() -> tuple[Optional[str], float]:
+    try:
+        data = json.loads(_TOKEN_CACHE_PATH.read_text())
+        return data.get("access_token"), float(data.get("expires_at", 0))
+    except Exception:
+        return None, 0.0
+
+
+def _save_disk_token_cache(token: str, expires_at: float) -> None:
+    # Best-effort: a stale/missing cache just means the next call re-authenticates.
+    try:
+        _TOKEN_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = _TOKEN_CACHE_PATH.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps({"access_token": token, "expires_at": expires_at}))
+        tmp_path.chmod(0o600)
+        tmp_path.replace(_TOKEN_CACHE_PATH)
+    except Exception:
+        logger.warning("Failed to persist FPL auth token cache", exc_info=True)
+
+
+def _clear_disk_token_cache() -> None:
+    try:
+        _TOKEN_CACHE_PATH.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+class _CachedTokenProvider:
+    """Caches the FPL access token, refreshing only on expiry or an explicit invalidate.
+
+    `get_auth_token()` spawns a subprocess that launches a fresh Playwright/Chromium
+    context, so it must not be called on every outgoing API request. The resolved
+    token is also persisted to disk so a server restart reuses it instead of
+    relaunching the browser, as long as it hasn't actually expired.
+    """
+
+    def __init__(self, fetch_token):
+        self._fetch_token = fetch_token
+        self._token: Optional[str] = None
+        self._expires_at: float = 0.0
+        self._lock = threading.Lock()
+
+    def __call__(self, entry_id: int) -> str:
+        with self._lock:
+            if self._token and time.time() < self._expires_at:
+                return self._token
+
+            if self._token is None:
+                disk_token, disk_expires_at = _load_disk_token_cache()
+                if disk_token and time.time() < disk_expires_at:
+                    self._token = disk_token
+                    self._expires_at = disk_expires_at
+                    return self._token
+
+            return self._refresh_locked()
+
+    def invalidate(self) -> None:
+        with self._lock:
+            self._token = None
+            self._expires_at = 0.0
+            _clear_disk_token_cache()
+
+    def _refresh_locked(self) -> str:
+        token = self._fetch_token()
+        expiry = _decode_jwt_expiry(token)
+        self._expires_at = (
+            expiry - _ACCESS_TOKEN_SAFETY_MARGIN if expiry else time.time() + _DEFAULT_TOKEN_TTL
+        )
+        self._token = token
+        _save_disk_token_cache(token, self._expires_at)
+        return token
+
+
+_token_cache = _CachedTokenProvider(get_auth_token)
 
 
 app = FastAPI(title="FPL Draft API")
@@ -89,14 +183,11 @@ def _get_browser_auth() -> BrowserAuth:
 
 
 def _authenticated_client():
-    """Create the API client on the dedicated Playwright thread."""
+    """Create the API client, reusing a cached auth token across calls."""
     if os.environ.get("FPL_AUTH_DISABLED") == "1":
         return requests.Session()
 
-    def token_provider(eid: int) -> str:
-        return get_auth_token()
-
-    return FplHttpClient(token_provider=token_provider)
+    return FplHttpClient(token_provider=_token_cache)
 
 
 def _compute_expected_points(entry_id: Optional[int], event_id: Optional[int], use_my_team: bool):
