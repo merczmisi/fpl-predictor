@@ -70,10 +70,11 @@ Health check:
 curl http://127.0.0.1:8000/health
 ```
 
-Example request:
+Example requests:
 
 ```bash
-curl "http://127.0.0.1:8000/expected_points?entry_id=293299&use_my_team=true"
+curl "http://127.0.0.1:8000/expected_points/my_team"
+curl "http://127.0.0.1:8000/expected_points?entry_id=293299"
 ```
 
 Notes:

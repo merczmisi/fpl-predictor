@@ -63,7 +63,7 @@ export default function App() {
     setError("");
 
     try {
-      const res = await fetch("/expected_points?use_my_team=true");
+      const res = await fetch("/expected_points/my_team");
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);
       }

@@ -21,7 +21,7 @@ from fpl_draft.predict import (
     compute_expected_points_for_entry,
     compute_expected_points_for_entry_from_my_team,
 )
-from fpl_draft.api import get_my_entry_set
+from fpl_draft.api import get_game, get_my_entry_set
 from fpl_draft.auth import BrowserAuth
 from fpl_draft.http import FplHttpClient
 from webapi.launcher import get_auth_status, get_auth_token
@@ -190,12 +190,19 @@ def _authenticated_client():
     return FplHttpClient(token_provider=_token_cache)
 
 
-def _compute_expected_points(entry_id: Optional[int], event_id: Optional[int], use_my_team: bool):
+def _compute_expected_points_my_team(event_id: Optional[int]):
+    client = _authenticated_client()
+    return compute_expected_points_for_entry_from_my_team(client)
+
+
+def _compute_expected_points(entry_id: int, event_id: Optional[int]):
     client = _authenticated_client()
 
-    if use_my_team or event_id is None:
-        return compute_expected_points_for_entry_from_my_team(client)
-    return compute_expected_points_for_entry(client, int(entry_id), int(event_id))
+    if event_id is None:
+        game = get_game(client)
+        event_id = game["next_event"] if game["current_event_finished"] else game["current_event"]
+
+    return compute_expected_points_for_entry(client, entry_id, int(event_id))
 
 
 def _fetch_bootstrap_dynamic_entry_set(entry_id: int):
@@ -203,14 +210,43 @@ def _fetch_bootstrap_dynamic_entry_set(entry_id: int):
     return get_my_entry_set(client)
 
 
+@app.get("/expected_points/my_team")
+async def expected_points_my_team(event_id: Optional[int] = None):
+    """Return expected points computed from the persistent `my-team` payload.
+
+    Query parameters:
+    - `event_id` (int, optional): currently unused; the backend always resolves the active gameweek from `my-team`.
+    """
+
+    try:
+        loop = asyncio.get_running_loop()
+        df = await loop.run_in_executor(
+            browser_executor,
+            _compute_expected_points_my_team,
+            event_id,
+        )
+
+        # Convert DataFrame to JSON-serializable records
+        records = df.fillna("").to_dict(orient="records")
+
+        return {"data": records}
+
+    except Exception as exc:  # pragma: no cover - surface server errors as 500
+        # Surface Draft API 403s more clearly
+        msg = str(exc)
+        logger.exception("Failed to compute expected points")
+        if "403" in msg or "Forbidden" in msg:
+            raise HTTPException(status_code=502, detail=f"Upstream API returned 403 Forbidden: {msg}")
+        raise HTTPException(status_code=500, detail=msg)
+
+
 @app.get("/expected_points")
-async def expected_points(entry_id: Optional[int] = None, event_id: Optional[int] = None, use_my_team: bool = False):
+async def expected_points(entry_id: int, event_id: Optional[int] = None):
     """Return expected points for an entry as JSON.
 
     Query parameters:
-    - `entry_id` (int, optional): public entry id; resolved from the authenticated user's team when omitted
-    - `event_id` (int, optional): gameweek/event id. If omitted and `use_my_team` is false, the backend will default to `my-team` behaviour.
-    - `use_my_team` (bool): when true, compute from the persistent `my-team` payload.
+    - `entry_id` (int): public entry id
+    - `event_id` (int, optional): gameweek/event id. Defaults to the active gameweek when omitted.
     """
 
     try:
@@ -220,7 +256,6 @@ async def expected_points(entry_id: Optional[int] = None, event_id: Optional[int
             _compute_expected_points,
             entry_id,
             event_id,
-            use_my_team,
         )
 
         # Convert DataFrame to JSON-serializable records
