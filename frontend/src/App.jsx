@@ -153,7 +153,7 @@ export default function App() {
         </p>
       </header>
 
-      <section className="controls" aria-label="FPL account controls">
+      <section aria-label="FPL account controls">
         {connection !== "connected" && (
           <button type="button" onClick={connectFpl} disabled={connection === "connecting"}>
             {connection === "connecting" ? "Connect in progress..." : "Connect FPL account"}
@@ -169,7 +169,17 @@ export default function App() {
 
       {players.length > 0 && (
         <>
-          <div className="points-summary">
+          <div className="event-info">
+            <h2>
+              Gameweek: {eventId}
+            </h2>
+          </div>
+          {currentEventFinished ? (
+            <div className="points-summary">
+                Expected points: {totalXPFirst11.toFixed(1)}{" "}
+            </div>
+          ) : (
+            <div className="points-summary">
               Latest points
               <div className="total-points">
                 {totalFirst11.toFixed(1)}
@@ -180,8 +190,8 @@ export default function App() {
                   ({pointsDiff > 0 ? "+" : ""}{pointsDiff.toFixed(1)})
                 </span>
               </div>
-          </div>
-
+            </div>
+          )}
 
           <section className="pitch-section">
             <TeamPitch starting={starting} subs={subs} />
@@ -201,7 +211,7 @@ export default function App() {
                 {selected.map((p) => (
                   <tr key={p.id}>
                     <td>{p.web_name}</td>
-                    <td>{p.expected_points}</td>
+                    <td>{p.expected_points.toFixed(1)}</td>
                     <td>
                       <span
                         style={{
