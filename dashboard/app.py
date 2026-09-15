@@ -1,11 +1,17 @@
 import streamlit as st
-import requests
 import pandas as pd
 
+from fpl_session import FPLSession
 from fpl_draft.predict import (
     compute_expected_points_for_entry,
     compute_expected_points_for_entry_from_my_team,
 )
+
+
+@st.cache_resource
+def get_fpl_session() -> FPLSession:
+    """Reuse a single authenticated session (and its browser profile) across reruns."""
+    return FPLSession()
 
 
 st.set_page_config(page_title="FPL Draft Dashboard", layout="wide")
@@ -19,7 +25,7 @@ event_id = st.sidebar.number_input("Event ID", value=1, step=1)
 
 if st.sidebar.button("Compute expected points"):
     with st.spinner("Fetching data and computing expected points..."):
-        session = requests.Session()
+        session = get_fpl_session()
 
         try:
             if use_my_team:

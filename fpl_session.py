@@ -326,8 +326,8 @@ class FPLSession:
     ):
         # Delegate to API wrapper which uses the `self` client's `.get`.
         return (
-            __import__("fpl_draft.api", fromlist=["get_next_match_difficulty"])  # lazy import
-            .get_next_match_difficulty(self, player_id)
+            __import__("fpl_draft.api", fromlist=["get_opponent_difficulty"])  # lazy import
+            .get_opponent_difficulty(self, player_id, event_id)
         )
 
     def get_bootstrap_static(self):

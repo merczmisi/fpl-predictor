@@ -9,4 +9,4 @@ pip install streamlit
 streamlit run dashboard/app.py
 ```
 
-The app uses the same `fpl_draft` functions and will call the public FPL/Draft APIs via `requests`.
+The app uses the same `fpl_draft` functions and authenticates via `FPLSession` (Playwright-backed browser auth), which injects the `X-Api-Authorization` header required by the Draft API.
