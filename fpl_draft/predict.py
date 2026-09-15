@@ -130,9 +130,7 @@ def compute_expected_points_for_entry_from_my_team(
     team_codes = teams.set_index("id")["code"].to_dict()
 
     selected["next_opponent"] = selected["team"].apply(
-        lambda team_id: get_next_opponent(
-            team_id, fixtures, team_names, include_venue=True
-        )
+        lambda team_id: get_next_opponent(team_id, fixtures, team_names)
     )
     selected["team_code"] = selected["team"].map(team_codes)
 

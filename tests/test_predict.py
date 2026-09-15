@@ -46,9 +46,9 @@ class DummyClient:
                         },
                     ],
                     "teams": [
-                        {"id": 1, "name": "Arsenal"},
-                        {"id": 2, "name": "Chelsea"},
-                        {"id": 3, "name": "Liverpool"},
+                        {"id": 1, "name": "Arsenal", "code": 3},
+                        {"id": 2, "name": "Chelsea", "code": 8},
+                        {"id": 3, "name": "Liverpool", "code": 14},
                     ],
                 }
             )
@@ -76,7 +76,7 @@ def test_compute_expected_points_simple():
     df = compute_expected_points_for_entry(client, entry_id=999, event_id=4)
 
     assert list(df["id"]) == [1, 2]
-    assert list(df["next_opponent"]) == ["Liverpool", "Arsenal"]
+    assert list(df["next_opponent"]) == ["Liverpool (H)", "Arsenal (H)"]
 
     # expected_points: player1 -> base=4.2, fdr(1)=1.15 -> 4.83; player2 -> base=1.6
     vals = list(df["expected_points"].astype(float).round(2))
@@ -107,11 +107,11 @@ def test_compute_expected_points_for_my_team_uses_current_event_when_entry_omitt
             if url.endswith("/api/bootstrap-dynamic"):
                 return DummyResponse({"player": {"entry_set": [999]}})
             if url.endswith("/api/game"):
-                return DummyResponse({"next_event": 4})
+                return DummyResponse({"current_event_finished": True, "next_event": 4})
             if url.endswith("/api/entry/999/my-team"):
                 return DummyResponse({"picks": [{"element": 1}, {"element": 2}]})
             return super().get(url, **kwargs)
 
     df = compute_expected_points_for_entry_from_my_team(MyTeamClient())
 
-    assert list(df["next_opponent"]) == ["Liverpool", "Arsenal"]
+    assert list(df["next_opponent"]) == ["Liverpool (H)", "Arsenal (H)"]
