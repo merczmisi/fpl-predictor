@@ -36,7 +36,7 @@ def get_next_opponent(
 
 
 def get_fixture_started(team_id: int, fixtures: list[dict]) -> bool | None:
-    """Return the `finished` flag of the first fixture involving `team_id`.
+    """Return the `started` flag of the first fixture involving `team_id`.
 
     Returns `None` if no fixture for `team_id` is found in `fixtures`.
     """

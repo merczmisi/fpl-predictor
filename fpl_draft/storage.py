@@ -98,6 +98,7 @@ def load_league_history(league_id: int, db_path: str | Path = DEFAULT_DB_PATH) -
     """Load the stored history for a league into a tidy DataFrame."""
     conn = _get_connection(db_path)
     try:
+        _ensure_schema(conn)
         df = pd.read_sql_query(
             """
             SELECT *
