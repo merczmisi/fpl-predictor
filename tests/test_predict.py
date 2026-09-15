@@ -61,11 +61,11 @@ class DummyClient:
                 ]
             )
 
-        # Element summary -> fixtures
-        if "element-summary" in url:
-            pid = int(url.rstrip("/").split("/")[-1])
-            difficulty = 1 if pid == 1 else 3
-            return DummyResponse({"fixtures": [{"difficulty": difficulty}]})
+        # Future fixtures (fantasy API) -> per-team difficulty
+        if url.endswith("/api/fixtures/"):
+            return DummyResponse(
+                [{"team_h": 1, "team_a": 2, "team_h_difficulty": 1, "team_a_difficulty": 3}]
+            )
 
         raise AssertionError(f"Unexpected URL: {url}")
 

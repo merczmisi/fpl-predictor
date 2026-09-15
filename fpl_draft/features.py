@@ -46,6 +46,20 @@ def get_fixture_started(team_id: int, fixtures: list[dict]) -> bool | None:
     return None
 
 
+def get_team_fixture_difficulty(team_id: int, fixtures: list[dict]) -> int | None:
+    """Return `team_id`'s difficulty for its fixture in `fixtures`.
+
+    Expects fixtures shaped like the fantasy `fixtures` endpoint, i.e. with
+    `team_h`/`team_a` and `team_h_difficulty`/`team_a_difficulty` fields.
+    """
+    for fixture in fixtures:
+        if team_id == fixture.get("team_h"):
+            return fixture.get("team_h_difficulty")
+        if team_id == fixture.get("team_a"):
+            return fixture.get("team_a_difficulty")
+    return None
+
+
 def normalize_league_details(payload: dict, game: dict) -> pd.DataFrame:
     """Convert a draft league-details payload into a tidy standings DataFrame.
 

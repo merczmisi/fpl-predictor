@@ -11,6 +11,7 @@ from fpl_draft.features import (
     compute_expected_points_from_df,
     get_fixture_started,
     get_next_opponent,
+    get_team_fixture_difficulty,
     rank_players_by_position,
 )
 
@@ -80,11 +81,11 @@ def compute_expected_points_for_entry(
 
     selected = compute_base_points(selected)
 
-    # Retrieve next match difficulty using the API wrapper which will call
-    # `client.get(...)` for element summaries. This keeps network calls
-    # encapsulated and makes testing easier.
-    selected["next_match_difficulty"] = selected["id"].apply(
-        lambda pid: api.get_next_match_difficulty(client, int(pid))
+    # Single batch fetch of upcoming fixtures, looked up per-team instead of
+    # issuing one element-summary request per player.
+    future_fixtures = api.get_future_fixtures(client, event_id)
+    selected["next_match_difficulty"] = selected["team"].apply(
+        lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )
 
     selected = apply_fdr_multiplier(selected)
@@ -144,8 +145,9 @@ def compute_expected_points_for_entry_from_my_team(
 
     selected = compute_base_points(selected)
 
-    selected["next_match_difficulty"] = selected["id"].apply(
-        lambda pid: api.get_next_match_difficulty(client, int(pid))
+    future_fixtures = api.get_future_fixtures(client, event_id)
+    selected["next_match_difficulty"] = selected["team"].apply(
+        lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )
 
     selected = apply_fdr_multiplier(selected)
