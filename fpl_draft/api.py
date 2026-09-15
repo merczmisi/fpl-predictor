@@ -59,7 +59,7 @@ def get_game(client: Any) -> dict:
     return response.json()
 
 
-def get_bootstrap_dynamic_entry_set(client: Any) -> list[int]:
+def get_my_entry_set(client: Any) -> list[int]:
     """Fetch the draft `bootstrap-dynamic` payload and return `player.entry_set`.
 
     This is a thin wrapper so callers can unit-test against a small client stub.

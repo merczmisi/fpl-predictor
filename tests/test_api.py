@@ -64,7 +64,7 @@ def test_get_bootstrap_dynamic_entry_set():
     url = "https://draft.premierleague.com/api/bootstrap-dynamic"
     client = DummyClient({url: {"player": {"entry_set": [299995]}}})
 
-    entry_set = api.get_bootstrap_dynamic_entry_set(client)
+    entry_set = api.get_my_entry_set(client)
 
     assert entry_set == [299995]
 

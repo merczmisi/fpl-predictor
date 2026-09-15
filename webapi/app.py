@@ -21,7 +21,7 @@ from fpl_draft.predict import (
     compute_expected_points_for_entry,
     compute_expected_points_for_entry_from_my_team,
 )
-from fpl_draft.api import get_bootstrap_dynamic_entry_set
+from fpl_draft.api import get_my_entry_set
 from fpl_draft.auth import BrowserAuth
 from fpl_draft.http import FplHttpClient
 from webapi.launcher import get_auth_status, get_auth_token
@@ -200,7 +200,7 @@ def _compute_expected_points(entry_id: Optional[int], event_id: Optional[int], u
 
 def _fetch_bootstrap_dynamic_entry_set(entry_id: int):
     client = _authenticated_client()
-    return get_bootstrap_dynamic_entry_set(client)
+    return get_my_entry_set(client)
 
 
 @app.get("/expected_points")
