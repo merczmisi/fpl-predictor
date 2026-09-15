@@ -96,11 +96,11 @@ def compute_expected_points_for_entry(
 
 def compute_expected_points_for_entry_from_my_team(
     client: Any,
+    event_id: int,
 ) -> pd.DataFrame:
     """Compute expected points for an entry using the persistent `my-team`.
 
     - Resolve the active entry when no entry ID is provided.
-    - Fetch the current event from the Draft game endpoint.
     - Fetch player ids from the entry's `my-team` payload.
     - Fetch `bootstrap-static` and select the players in the same order.
     - Compute base points, apply FDR multipliers, and final expected points.
@@ -110,10 +110,6 @@ def compute_expected_points_for_entry_from_my_team(
     if not entry_ids:
         raise ValueError("No draft entry IDs were returned by bootstrap-dynamic.")
     entry_id = entry_ids[0]
-
-    game = api.get_game(client)
-    current_event_finished = game["current_event_finished"]
-    event_id = game["next_event"] if current_event_finished else game["current_event"]
 
     player_ids = api.get_my_team_ids(client, entry_id)
 

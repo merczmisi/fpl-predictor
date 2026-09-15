@@ -19,6 +19,8 @@ export default function App() {
   const [connection, setConnection] = useState("checking");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [eventId, setEventId] = useState(null);
+  const [currentEventFinished, setCurrentEventFinished] = useState(null);
 
   useEffect(() => {
     async function checkConnection() {
@@ -63,7 +65,20 @@ export default function App() {
     setError("");
 
     try {
-      const res = await fetch("/expected_points/my_team");
+      const gameRes = await fetch("/game_state");
+      if (!gameRes.ok) {
+        throw new Error(`Request failed with status ${gameRes.status}`);
+      }
+
+      const gameBody = await gameRes.json();
+      const resolvedEventId = gameBody.current_event_finished
+        ? gameBody.next_event
+        : gameBody.current_event;
+
+      setCurrentEventFinished(gameBody.current_event_finished);
+      setEventId(resolvedEventId);
+
+      const res = await fetch(`/expected_points/my_team?event_id=${resolvedEventId}`);
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);
       }

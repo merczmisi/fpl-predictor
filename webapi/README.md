@@ -73,7 +73,8 @@ curl http://127.0.0.1:8000/health
 Example requests:
 
 ```bash
-curl "http://127.0.0.1:8000/expected_points/my_team"
+curl "http://127.0.0.1:8000/game_state"
+curl "http://127.0.0.1:8000/expected_points/my_team?event_id=4"
 curl "http://127.0.0.1:8000/expected_points?entry_id=293299"
 ```
 

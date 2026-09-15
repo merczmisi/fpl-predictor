@@ -16,8 +16,8 @@ Example fetch snippet to call the backend (use in a component):
 
 ```js
 // Fetch expected points for an entry
-async function fetchExpectedPoints(entryId) {
-  const res = await fetch(`http://localhost:8000/expected_points/my_team`);
+async function fetchExpectedPoints(eventId) {
+  const res = await fetch(`http://localhost:8000/expected_points/my_team?event_id=${eventId}`);
   const body = await res.json();
   return body.data; // array of player records
 }
