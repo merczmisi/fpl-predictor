@@ -190,9 +190,9 @@ def _authenticated_client():
     return FplHttpClient(token_provider=_token_cache)
 
 
-def _compute_expected_points_my_team(event_id: Optional[int]):
+def _compute_expected_points_my_team(event_id: int):
     client = _authenticated_client()
-    return compute_expected_points_for_entry_from_my_team(client)
+    return compute_expected_points_for_entry_from_my_team(client, event_id)
 
 
 def _compute_expected_points(entry_id: int, event_id: Optional[int]):
@@ -210,12 +210,39 @@ def _fetch_bootstrap_dynamic_entry_set(entry_id: int):
     return get_my_entry_set(client)
 
 
+def _fetch_game_state():
+    client = _authenticated_client()
+    return get_game(client)
+
+
+@app.get("/game_state")
+async def game_state():
+    """Return the Draft game/event status so callers can resolve the active event id."""
+
+    try:
+        loop = asyncio.get_running_loop()
+        game = await loop.run_in_executor(browser_executor, _fetch_game_state)
+
+        return {
+            "current_event": game.get("current_event"),
+            "next_event": game.get("next_event"),
+            "current_event_finished": game.get("current_event_finished"),
+        }
+
+    except Exception as exc:  # pragma: no cover - surface server errors as 500
+        msg = str(exc)
+        logger.exception("Failed to fetch game state")
+        if "403" in msg or "Forbidden" in msg:
+            raise HTTPException(status_code=502, detail=f"Upstream API returned 403 Forbidden: {msg}")
+        raise HTTPException(status_code=500, detail=msg)
+
+
 @app.get("/expected_points/my_team")
-async def expected_points_my_team(event_id: Optional[int] = None):
+async def expected_points_my_team(event_id: int):
     """Return expected points computed from the persistent `my-team` payload.
 
     Query parameters:
-    - `event_id` (int, optional): currently unused; the backend always resolves the active gameweek from `my-team`.
+    - `event_id` (int): the gameweek/event id to compute expected points for.
     """
 
     try:

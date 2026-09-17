@@ -349,6 +349,15 @@ class FPLSession:
             "fpl_draft.api", fromlist=["get_game"]
         ).get_game(self)
 
+    def get_future_fixtures(
+        self,
+        event_id: int | None = None,
+    ):
+        """Fetch upcoming fixtures from the fantasy `fixtures` endpoint."""
+        return __import__(
+            "fpl_draft.api", fromlist=["get_future_fixtures"]
+        ).get_future_fixtures(self, event_id)
+
     def get_players_on_form_by_position(
         self,
         position: str,
@@ -407,11 +416,20 @@ class FPLSession:
         ).compute_expected_points_for_entry(self, entry_id, event_id)
         
     def get_expected_points_for_my_team(
-        self
+        self,
+        event_id: int | None = None,
     ):
         """Delegate expected points computation to the `predict` orchestrator."""
+
+        if event_id is None:
+            game = self.get_game()
+            event_id = (
+                game["next_event"]
+                if game["current_event_finished"]
+                else game["current_event"]
+            )
 
         # Lazy import to avoid circular imports during module import time.
         return __import__(
             "fpl_draft.predict", fromlist=["compute_expected_points_for_entry_from_my_team"]
-        ).compute_expected_points_for_entry_from_my_team(self)
+        ).compute_expected_points_for_entry_from_my_team(self, event_id)

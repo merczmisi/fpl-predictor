@@ -104,6 +104,86 @@ def test_fplsession_get_my_team_uses_current_entry_set_when_no_id_given():
     assert team["picks"][0]["element"] == 10
 
 
+def _make_expected_points_http_client(game_payload):
+    class DummyHttpClient:
+        def __init__(self):
+            self.calls = []
+
+        def request(self, method, url, headers=None, **kwargs):
+            self.calls.append((method, url, headers))
+
+            if url == "https://draft.premierleague.com/api/game":
+                return DummyResp(200, game_payload)
+            if url == "https://draft.premierleague.com/api/bootstrap-dynamic":
+                return DummyResp(200, {"player": {"entry_set": [999]}})
+            if url == "https://draft.premierleague.com/api/entry/999/my-team":
+                return DummyResp(200, {"picks": [{"element": 1}, {"element": 2}]})
+            if url == "https://draft.premierleague.com/api/bootstrap-static":
+                return DummyResp(
+                    200,
+                    {
+                        "elements": [
+                            {"id": 1, "form": "5.0", "points_per_game": "3.0", "chance_of_playing_next_round": "100", "team": 1},
+                            {"id": 2, "form": "2.0", "points_per_game": "1.0", "chance_of_playing_next_round": "100", "team": 2},
+                        ],
+                        "teams": [
+                            {"id": 1, "name": "Arsenal", "code": 3},
+                            {"id": 2, "name": "Chelsea", "code": 8},
+                            {"id": 3, "name": "Liverpool", "code": 14},
+                        ],
+                    },
+                )
+            if url == "https://draft.premierleague.com/api/event/3/fixtures":
+                return DummyResp(200, [{"team_h": 1, "team_a": 3}])
+            if url == "https://draft.premierleague.com/api/event/4/fixtures":
+                return DummyResp(200, [{"team_h": 2, "team_a": 1}])
+            if url == "https://fantasy.premierleague.com/api/fixtures/":
+                return DummyResp(200, [])
+            return DummyResp(404, {})
+
+    return DummyHttpClient()
+
+
+class _DummyAuth:
+    def ensure_authenticated(self, entry_id=0):
+        return "mock-token"
+
+    def start(self):
+        return None
+
+    def close(self):
+        return None
+
+
+def test_fplsession_get_expected_points_for_my_team_uses_current_event_when_not_finished():
+    from fpl_session import FPLSession
+
+    s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
+    s.auth = _DummyAuth()
+    s.http = _make_expected_points_http_client(
+        {"current_event": 3, "current_event_finished": False, "next_event": 4}
+    )
+
+    df = s.get_expected_points_for_my_team()
+
+    assert df["next_opponent"].iloc[0] == "Liverpool (H)"
+    assert pd.isna(df["next_opponent"].iloc[1])
+
+
+def test_fplsession_get_expected_points_for_my_team_uses_next_event_when_finished():
+    from fpl_session import FPLSession
+
+    s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
+    s.auth = _DummyAuth()
+    s.http = _make_expected_points_http_client(
+        {"current_event": 3, "current_event_finished": True, "next_event": 4}
+    )
+
+    df = s.get_expected_points_for_my_team()
+
+    assert list(df["next_opponent"]) == ["Chelsea (A)", "Arsenal (H)"]
+
+
 def test_fplsession_refreshes_auth_after_401():
     from fpl_session import FPLSession
 

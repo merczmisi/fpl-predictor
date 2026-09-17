@@ -109,3 +109,17 @@ def get_league_details(client: Any, league_id: int) -> dict:
     response = client.get(url)
     response.raise_for_status()
     return response.json()
+
+
+def get_future_fixtures(client: Any, event_id: int | None = None) -> list[dict]:
+    """Return upcoming fixtures from the fantasy `fixtures` endpoint (`future=1`).
+
+    If `event_id` is given, only fixtures for that gameweek are returned.
+    """
+    url = f"{FANTASY_API_URL}/api/fixtures/"
+    params = {"future": 1}
+    if event_id is not None:
+        params["event"] = event_id
+    response = client.get(url, params=params)
+    response.raise_for_status()
+    return response.json()

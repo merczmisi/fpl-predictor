@@ -11,6 +11,7 @@ from fpl_draft.features import (
     compute_expected_points_from_df,
     get_fixture_started,
     get_next_opponent,
+    get_team_fixture_difficulty,
     rank_players_by_position,
 )
 
@@ -80,11 +81,11 @@ def compute_expected_points_for_entry(
 
     selected = compute_base_points(selected)
 
-    # Retrieve next match difficulty using the API wrapper which will call
-    # `client.get(...)` for element summaries. This keeps network calls
-    # encapsulated and makes testing easier.
-    selected["next_match_difficulty"] = selected["id"].apply(
-        lambda pid: api.get_next_match_difficulty(client, int(pid))
+    # Single batch fetch of upcoming fixtures, looked up per-team instead of
+    # issuing one element-summary request per player.
+    future_fixtures = api.get_future_fixtures(client, event_id)
+    selected["next_match_difficulty"] = selected["team"].apply(
+        lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )
 
     selected = apply_fdr_multiplier(selected)
@@ -96,11 +97,11 @@ def compute_expected_points_for_entry(
 
 def compute_expected_points_for_entry_from_my_team(
     client: Any,
+    event_id: int,
 ) -> pd.DataFrame:
     """Compute expected points for an entry using the persistent `my-team`.
 
     - Resolve the active entry when no entry ID is provided.
-    - Fetch the current event from the Draft game endpoint.
     - Fetch player ids from the entry's `my-team` payload.
     - Fetch `bootstrap-static` and select the players in the same order.
     - Compute base points, apply FDR multipliers, and final expected points.
@@ -110,10 +111,6 @@ def compute_expected_points_for_entry_from_my_team(
     if not entry_ids:
         raise ValueError("No draft entry IDs were returned by bootstrap-dynamic.")
     entry_id = entry_ids[0]
-
-    game = api.get_game(client)
-    current_event_finished = game["current_event_finished"]
-    event_id = game["next_event"] if current_event_finished else game["current_event"]
 
     player_ids = api.get_my_team_ids(client, entry_id)
 
@@ -148,8 +145,9 @@ def compute_expected_points_for_entry_from_my_team(
 
     selected = compute_base_points(selected)
 
-    selected["next_match_difficulty"] = selected["id"].apply(
-        lambda pid: api.get_next_match_difficulty(client, int(pid))
+    future_fixtures = api.get_future_fixtures(client, event_id)
+    selected["next_match_difficulty"] = selected["team"].apply(
+        lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )
 
     selected = apply_fdr_multiplier(selected)

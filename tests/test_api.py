@@ -12,8 +12,10 @@ class DummyResp:
 class DummyClient:
     def __init__(self, mapping):
         self.mapping = mapping
+        self.calls = []
 
     def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
         return DummyResp(self.mapping[url])
 
 
@@ -56,6 +58,33 @@ def test_get_league_details():
     assert league["league"]["id"] == 55729
     assert league["league_entries"][0]["entry_name"] == "Alpha"
     assert league["matches"][0]["event"] == 1
+
+
+def test_get_fixtures():
+    from fpl_draft import api
+
+    fixtures_url = "https://fantasy.premierleague.com/api/fixtures/"
+    client = DummyClient(
+        {
+            fixtures_url: [
+                {
+                    "id": 41,
+                    "event": 5,
+                    "team_h": 4,
+                    "team_a": 6,
+                    "team_h_difficulty": 4,
+                    "team_a_difficulty": 3,
+                }
+            ]
+        }
+    )
+
+    fixtures = api.get_future_fixtures(client, event_id=5)
+
+    assert fixtures[0]["id"] == 41
+    assert fixtures[0]["team_h"] == 4
+    assert client.calls == [(fixtures_url, {"params": {"future": 1, "event": 5}})]
+
 
 
 def test_get_bootstrap_dynamic_entry_set():

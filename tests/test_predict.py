@@ -61,11 +61,11 @@ class DummyClient:
                 ]
             )
 
-        # Element summary -> fixtures
-        if "element-summary" in url:
-            pid = int(url.rstrip("/").split("/")[-1])
-            difficulty = 1 if pid == 1 else 3
-            return DummyResponse({"fixtures": [{"difficulty": difficulty}]})
+        # Future fixtures (fantasy API) -> per-team difficulty
+        if url.endswith("/api/fixtures/"):
+            return DummyResponse(
+                [{"team_h": 1, "team_a": 2, "team_h_difficulty": 1, "team_a_difficulty": 3}]
+            )
 
         raise AssertionError(f"Unexpected URL: {url}")
 
@@ -101,17 +101,15 @@ def test_get_players_on_form_by_position():
     assert result.loc[0, "base_points"] == 5.2
 
 
-def test_compute_expected_points_for_my_team_uses_current_event_when_entry_omitted():
+def test_compute_expected_points_for_my_team_resolves_entry_with_explicit_event():
     class MyTeamClient(DummyClient):
         def get(self, url, **kwargs):
             if url.endswith("/api/bootstrap-dynamic"):
                 return DummyResponse({"player": {"entry_set": [999]}})
-            if url.endswith("/api/game"):
-                return DummyResponse({"current_event_finished": True, "next_event": 4})
             if url.endswith("/api/entry/999/my-team"):
                 return DummyResponse({"picks": [{"element": 1}, {"element": 2}]})
             return super().get(url, **kwargs)
 
-    df = compute_expected_points_for_entry_from_my_team(MyTeamClient())
+    df = compute_expected_points_for_entry_from_my_team(MyTeamClient(), event_id=4)
 
     assert list(df["next_opponent"]) == ["Liverpool (H)", "Arsenal (H)"]

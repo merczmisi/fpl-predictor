@@ -19,6 +19,8 @@ export default function App() {
   const [connection, setConnection] = useState("checking");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [eventId, setEventId] = useState(null);
+  const [currentEventFinished, setCurrentEventFinished] = useState(null);
 
   useEffect(() => {
     async function checkConnection() {
@@ -63,7 +65,20 @@ export default function App() {
     setError("");
 
     try {
-      const res = await fetch("/expected_points/my_team");
+      const gameRes = await fetch("/game_state");
+      if (!gameRes.ok) {
+        throw new Error(`Request failed with status ${gameRes.status}`);
+      }
+
+      const gameBody = await gameRes.json();
+      const resolvedEventId = gameBody.current_event_finished
+        ? gameBody.next_event
+        : gameBody.current_event;
+
+      setCurrentEventFinished(gameBody.current_event_finished);
+      setEventId(resolvedEventId);
+
+      const res = await fetch(`/expected_points/my_team?event_id=${resolvedEventId}`);
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);
       }
@@ -138,7 +153,7 @@ export default function App() {
         </p>
       </header>
 
-      <section className="controls" aria-label="FPL account controls">
+      <section aria-label="FPL account controls">
         {connection !== "connected" && (
           <button type="button" onClick={connectFpl} disabled={connection === "connecting"}>
             {connection === "connecting" ? "Connect in progress..." : "Connect FPL account"}
@@ -154,7 +169,17 @@ export default function App() {
 
       {players.length > 0 && (
         <>
-          <div className="points-summary">
+          <div className="event-info">
+            <h2>
+              Gameweek: {eventId}
+            </h2>
+          </div>
+          {currentEventFinished ? (
+            <div className="points-summary">
+                Expected points: {totalXPFirst11.toFixed(1)}{" "}
+            </div>
+          ) : (
+            <div className="points-summary">
               Latest points
               <div className="total-points">
                 {totalFirst11.toFixed(1)}
@@ -165,8 +190,8 @@ export default function App() {
                   ({pointsDiff > 0 ? "+" : ""}{pointsDiff.toFixed(1)})
                 </span>
               </div>
-          </div>
-
+            </div>
+          )}
 
           <section className="pitch-section">
             <TeamPitch starting={starting} subs={subs} />
@@ -186,7 +211,7 @@ export default function App() {
                 {selected.map((p) => (
                   <tr key={p.id}>
                     <td>{p.web_name}</td>
-                    <td>{p.expected_points}</td>
+                    <td>{p.expected_points.toFixed(1)}</td>
                     <td>
                       <span
                         style={{
