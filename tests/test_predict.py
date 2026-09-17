@@ -101,7 +101,7 @@ def test_get_players_on_form_by_position():
     assert result.loc[0, "base_points"] == 5.2
 
 
-def test_compute_expected_points_for_my_team_uses_current_event_when_entry_omitted():
+def test_compute_expected_points_for_my_team_resolves_entry_with_explicit_event():
     class MyTeamClient(DummyClient):
         def get(self, url, **kwargs):
             if url.endswith("/api/bootstrap-dynamic"):

@@ -12,8 +12,10 @@ class DummyResp:
 class DummyClient:
     def __init__(self, mapping):
         self.mapping = mapping
+        self.calls = []
 
     def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
         return DummyResp(self.mapping[url])
 
 
@@ -77,10 +79,11 @@ def test_get_fixtures():
         }
     )
 
-    fixtures = api.get_future_fixtures(client)
+    fixtures = api.get_future_fixtures(client, event_id=5)
 
     assert fixtures[0]["id"] == 41
     assert fixtures[0]["team_h"] == 4
+    assert client.calls == [(fixtures_url, {"params": {"future": 1, "event": 5}})]
 
 
 
