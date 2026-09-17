@@ -56,7 +56,7 @@ def compute_expected_points_for_entry(
 
     players = pd.json_normalize(data["elements"])
     
-    fixtures = api.get_event_fixtures(client, event_id)
+    fixtures = api.get_event_fixtures(client, event_id + 1)
     
     teams = pd.json_normalize(data["teams"])
 
@@ -83,7 +83,7 @@ def compute_expected_points_for_entry(
 
     # Single batch fetch of upcoming fixtures, looked up per-team instead of
     # issuing one element-summary request per player.
-    future_fixtures = api.get_future_fixtures(client, event_id)
+    future_fixtures = api.get_future_fixtures(client, event_id + 1)
     selected["next_match_difficulty"] = selected["team"].apply(
         lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )

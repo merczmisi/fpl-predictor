@@ -14,6 +14,8 @@ function difficultyColor(difficulty) {
   return DIFFICULTY_COLORS[Number(difficulty)] || "transparent";
 }
 
+const LEAGUE_ID = 55729;
+
 export default function App() {
   const [players, setPlayers] = useState([]);
   const [connection, setConnection] = useState("checking");
@@ -21,6 +23,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [eventId, setEventId] = useState(null);
   const [currentEventFinished, setCurrentEventFinished] = useState(null);
+  const [currentEvent, setCurrentEvent] = useState(null);
+  const [leagueEntries, setLeagueEntries] = useState([]);
+  const [selectedTeamName, setSelectedTeamName] = useState("");
 
   useEffect(() => {
     async function checkConnection() {
@@ -41,6 +46,71 @@ export default function App() {
 
     checkConnection();
   }, []);
+
+  // Auto-load the other league entries (excluding my own team) once connected.
+  useEffect(() => {
+    if (connection !== "connected") return;
+
+    async function loadLeagueEntries() {
+      try {
+        const [leagueRes, entrySetRes] = await Promise.all([
+          fetch(`/league/details?league_id=${LEAGUE_ID}`),
+          fetch("/bootstrap_dynamic_entry_set?entry_id=0"),
+        ]);
+
+        if (!leagueRes.ok) {
+          throw new Error(`Request failed with status ${leagueRes.status}`);
+        }
+        if (!entrySetRes.ok) {
+          throw new Error(`Request failed with status ${entrySetRes.status}`);
+        }
+
+        const leagueBody = await leagueRes.json();
+        const entrySetBody = await entrySetRes.json();
+
+        const myEntryIds = new Set(entrySetBody.entry_set || []);
+        const entries = (leagueBody.league_entries || []).filter(
+          (entry) => !myEntryIds.has(entry.entry_id)
+        );
+
+        setLeagueEntries(entries);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || String(err));
+      }
+    }
+
+    loadLeagueEntries();
+  }, [connection]);
+
+  // Auto-load the game state (current/next event) once connected, so other
+  // methods can rely on eventId/currentEvent already being populated.
+  useEffect(() => {
+    if (connection !== "connected") return;
+
+    async function loadGameState() {
+      try {
+        const gameRes = await fetch("/game_state");
+        if (!gameRes.ok) {
+          throw new Error(`Request failed with status ${gameRes.status}`);
+        }
+
+        const gameBody = await gameRes.json();
+        const resolvedEventId = gameBody.current_event_finished
+          ? gameBody.next_event
+          : gameBody.current_event;
+
+        setCurrentEventFinished(gameBody.current_event_finished);
+        setEventId(resolvedEventId);
+        setCurrentEvent(gameBody.current_event);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || String(err));
+      }
+    }
+
+    loadGameState();
+  }, [connection]);
 
   async function connectFpl() {
     setConnection("connecting");
@@ -65,26 +135,41 @@ export default function App() {
     setError("");
 
     try {
-      const gameRes = await fetch("/game_state");
-      if (!gameRes.ok) {
-        throw new Error(`Request failed with status ${gameRes.status}`);
-      }
-
-      const gameBody = await gameRes.json();
-      const resolvedEventId = gameBody.current_event_finished
-        ? gameBody.next_event
-        : gameBody.current_event;
-
-      setCurrentEventFinished(gameBody.current_event_finished);
-      setEventId(resolvedEventId);
-
-      const res = await fetch(`/expected_points/my_team?event_id=${resolvedEventId}`);
+      const res = await fetch(`/expected_points/my_team?event_id=${eventId}`);
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);
       }
 
       const body = await res.json();
       setPlayers(body.data || []);
+      setSelectedTeamName("My team");
+    } catch (err) {
+      console.error(err);
+      setError(err.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadEntryExpectedPoints(entry_id) {
+    setLoading(true);
+    setError("");
+
+    try {
+      // Always use the current event (not next), per league-entry comparisons.
+      const res = await fetch(
+        `/expected_points?entry_id=${encodeURIComponent(entry_id)}&event_id=${encodeURIComponent(currentEvent)}`
+      );
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}`);
+      }
+
+      const body = await res.json();
+      setPlayers(body.data || []);
+      // setEventId(currentEvent);
+      // setCurrentEventFinished(false);
+      const entry = leagueEntries.find((e) => e.entry_id === entry_id);
+      setSelectedTeamName(entry ? entry.entry_name : "");
     } catch (err) {
       console.error(err);
       setError(err.message || String(err));
@@ -160,9 +245,22 @@ export default function App() {
           </button>
         )}
         {connection === "connected" && (
-          <button type="button" onClick={loadData} disabled={loading}>
-            {loading ? "Loading..." : "Load my team"}
-          </button>
+          <div className="team-controls" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" onClick={loadData} disabled={loading}>
+              {loading ? "Loading..." : "My team"}
+            </button>
+
+            {leagueEntries.map((entry) => (
+              <button
+                key={entry.entry_id}
+                type="button"
+                onClick={() => loadEntryExpectedPoints(entry.entry_id)}
+                disabled={loading}
+              >
+                {entry.entry_name}
+              </button>
+            ))}
+          </div>
         )}
         {error && <p className="error">{error}</p>}
       </section>
@@ -173,6 +271,7 @@ export default function App() {
             <h2>
               Gameweek: {eventId}
             </h2>
+            {selectedTeamName &&  <h3 className="selected-team-name">{selectedTeamName}</h3>}
           </div>
           {currentEventFinished ? (
             <div className="points-summary">

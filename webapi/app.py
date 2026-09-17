@@ -21,7 +21,7 @@ from fpl_draft.predict import (
     compute_expected_points_for_entry,
     compute_expected_points_for_entry_from_my_team,
 )
-from fpl_draft.api import get_game, get_my_entry_set
+from fpl_draft.api import get_game, get_my_entry_set, get_league_details
 from fpl_draft.auth import BrowserAuth
 from fpl_draft.http import FplHttpClient
 from webapi.launcher import get_auth_status, get_auth_token
@@ -210,6 +210,11 @@ def _fetch_bootstrap_dynamic_entry_set(entry_id: int):
     return get_my_entry_set(client)
 
 
+def _fetch_league_details(league_id: int):
+    client = _authenticated_client()
+    return get_league_details(client, league_id)
+
+
 def _fetch_game_state():
     client = _authenticated_client()
     return get_game(client)
@@ -294,6 +299,32 @@ async def expected_points(entry_id: int, event_id: Optional[int] = None):
         # Surface Draft API 403s more clearly
         msg = str(exc)
         logger.exception("Failed to compute expected points")
+        if "403" in msg or "Forbidden" in msg:
+            raise HTTPException(status_code=502, detail=f"Upstream API returned 403 Forbidden: {msg}")
+        raise HTTPException(status_code=500, detail=msg)
+
+
+@app.get("/league/details")
+async def league_details(league_id: int):
+    """Return league standings/entries for a draft league id.
+
+    Query parameters:
+    - `league_id` (int): draft league id.
+    """
+
+    try:
+        loop = asyncio.get_running_loop()
+        payload = await loop.run_in_executor(
+            browser_executor,
+            _fetch_league_details,
+            league_id,
+        )
+
+        return payload
+
+    except Exception as exc:  # pragma: no cover - surface server errors as 500
+        msg = str(exc)
+        logger.exception("Failed to fetch league details")
         if "403" in msg or "Forbidden" in msg:
             raise HTTPException(status_code=502, detail=f"Upstream API returned 403 Forbidden: {msg}")
         raise HTTPException(status_code=500, detail=msg)

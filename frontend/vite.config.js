@@ -8,6 +8,7 @@ export default defineConfig({
       "/bootstrap_dynamic_entry_set": "http://127.0.0.1:8000",
       "/game_state": "http://127.0.0.1:8000",
       "/health": "http://127.0.0.1:8000",
+      "/league": "http://127.0.0.1:8000",
     },
   },
 });

@@ -104,6 +104,15 @@ button:disabled {
 	align-items: center;
 }
 
+.selected-team-name {
+	color: #792194;
+	font-size: 32px;
+	font-weight: bold;
+	letter-spacing: 0.03em;
+	margin: 0 0 0.15rem 0;
+	text-transform: uppercase;
+}
+
 .total-points,
 .total-expected-points {
 	font-weight: bold;
