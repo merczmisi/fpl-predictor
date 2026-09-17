@@ -60,6 +60,19 @@ def get_team_fixture_difficulty(team_id: int, fixtures: list[dict]) -> int | Non
     return None
 
 
+def sum_total_points_since_event(history: list[dict], event: int) -> int:
+    """Sum `total_points` from `history` entries at or after `event`.
+
+    Expects `history` shaped like the `element-summary` endpoint's
+    `history` list, i.e. entries with `event` and `total_points` fields.
+    """
+    return sum(
+        entry.get("total_points", 0) or 0
+        for entry in history
+        if entry.get("event", 0) >= event
+    )
+
+
 def normalize_league_details(payload: dict, game: dict) -> pd.DataFrame:
     """Convert a draft league-details payload into a tidy standings DataFrame.
 

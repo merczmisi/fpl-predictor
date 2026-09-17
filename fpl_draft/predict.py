@@ -13,6 +13,7 @@ from fpl_draft.features import (
     get_next_opponent,
     get_team_fixture_difficulty,
     rank_players_by_position,
+    sum_total_points_since_event,
 )
 
 
@@ -56,7 +57,7 @@ def compute_expected_points_for_entry(
 
     players = pd.json_normalize(data["elements"])
     
-    fixtures = api.get_event_fixtures(client, event_id + 1)
+    fixtures = api.get_event_fixtures(client, event_id)
     
     teams = pd.json_normalize(data["teams"])
 
@@ -155,3 +156,56 @@ def compute_expected_points_for_entry_from_my_team(
     selected = compute_expected_points_from_df(selected)
 
     return selected
+
+
+def count_earned_points(client: Any, player_id: int, event: int) -> int:
+    """Sum a player's total_points for `event` and all events after it."""
+    data = api.get_element_summary(client, player_id)
+    history = data.get("history") or []
+    return sum_total_points_since_event(history, event)
+
+
+def get_traded_players(
+    client: Any,
+    entry_id: int,
+    event_id: int,
+    league_id: int,
+) -> list[dict]:
+    """Return trades involving players currently on `entry_id`'s squad.
+
+    Players from `get_player_ids` with no matching trade are omitted.
+    """
+    player_ids = api.get_my_team_ids(client, entry_id)
+    trades = api.get_trades(client, league_id)
+
+    results: list[dict] = []
+    for player_id in player_ids:
+        # Iterate from the back (most recent first) so an older trade
+        # involving the same player can't override a more recent one.
+        for trade in reversed(trades):
+            matched = False
+            for item in trade.get("tradeitem_set", []):
+                element_in = item.get("element_in")
+                element_out = item.get("element_out")
+
+                if player_id == element_in:
+                    traded_with = element_out
+                elif player_id == element_out:
+                    traded_with = element_in
+                else:
+                    continue
+
+                results.append(
+                    {
+                        "player_id": player_id,
+                        "traded_with": traded_with,
+                        "event": trade.get("event"),
+                    }
+                )
+                matched = True
+                break
+
+            if matched:
+                break
+
+    return results

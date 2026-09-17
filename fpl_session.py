@@ -319,6 +319,40 @@ class FPLSession:
             .get_league_details(self, league_id)
         )
 
+    def get_trades(
+        self,
+        league_id: int,
+    ):
+        """Fetch the draft league's trade history."""
+        return (
+            __import__("fpl_draft.api", fromlist=["get_trades"])  # lazy import
+            .get_trades(self, league_id)
+        )
+
+    def get_traded_players(
+        self,
+        entry_id: int,
+        league_id: int,
+        event_id: int | None = None,
+    ):
+        """Return trades involving players currently on `entry_id`'s squad.
+
+        Delegates to the `predict` orchestrator, which combines
+        `get_player_ids` and `get_trades` and drops players with no trade.
+        """
+        if event_id is None:
+            game = self.get_game()
+            event_id = (
+                game["next_event"]
+                if game["current_event_finished"]
+                else game["current_event"]
+            )
+
+        return (
+            __import__("fpl_draft.predict", fromlist=["get_traded_players"])  # lazy import
+            .get_traded_players(self, entry_id, event_id, league_id)
+        )
+
     # Get next match difficulty for each player
     def get_next_match_difficulty(
         self,
@@ -433,3 +467,15 @@ class FPLSession:
         return __import__(
             "fpl_draft.predict", fromlist=["compute_expected_points_for_entry_from_my_team"]
         ).compute_expected_points_for_entry_from_my_team(self, event_id)
+
+    def count_earned_points(
+        self,
+        player_id: int,
+        event: int,
+    ) -> int:
+        """Sum a player's total_points for `event` and all events after it."""
+
+        # Lazy import to avoid circular imports during module import time.
+        return __import__(
+            "fpl_draft.predict", fromlist=["count_earned_points"]
+        ).count_earned_points(self, player_id, event)

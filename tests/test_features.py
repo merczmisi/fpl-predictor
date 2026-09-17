@@ -7,8 +7,30 @@ from fpl_draft.features import (
     compute_expected_points_from_df,
     normalize_league_details,
     rank_players_by_position,
+    sum_total_points_since_event,
 )
 from fpl_draft.storage import save_league_history, load_league_history, load_league_history_pivot
+
+
+def test_sum_total_points_since_event_includes_given_event_and_later():
+    history = [
+        {"event": 1, "total_points": 8},
+        {"event": 2, "total_points": 2},
+        {"event": 3, "total_points": 5},
+    ]
+
+    assert sum_total_points_since_event(history, 2) == 7
+    assert sum_total_points_since_event(history, 1) == 15
+    assert sum_total_points_since_event(history, 4) == 0
+
+
+def test_sum_total_points_since_event_handles_missing_values():
+    history = [
+        {"event": 1, "total_points": None},
+        {"event": 2},
+    ]
+
+    assert sum_total_points_since_event(history, 1) == 0
 
 
 def test_normalize_league_details():

@@ -60,6 +60,33 @@ def test_get_league_details():
     assert league["matches"][0]["event"] == 1
 
 
+def test_get_trades():
+    from fpl_draft import api
+
+    trades_url = "https://draft.premierleague.com/api/draft/league/55729/trades"
+    client = DummyClient(
+        {
+            trades_url: {
+                "trades": [
+                    {
+                        "event": 3,
+                        "id": 124007,
+                        "offered_entry": 293299,
+                        "received_entry": 299580,
+                        "state": "p",
+                        "tradeitem_set": [{"element_in": 427, "element_out": 398}],
+                    }
+                ]
+            }
+        }
+    )
+
+    trades = api.get_trades(client, 55729)
+
+    assert trades[0]["id"] == 124007
+    assert trades[0]["tradeitem_set"][0]["element_in"] == 427
+
+
 def test_get_fixtures():
     from fpl_draft import api
 

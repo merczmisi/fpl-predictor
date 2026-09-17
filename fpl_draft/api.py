@@ -111,6 +111,14 @@ def get_league_details(client: Any, league_id: int) -> dict:
     return response.json()
 
 
+def get_trades(client: Any, league_id: int) -> list[dict]:
+    """Return the `trades` list for a draft league."""
+    url = f"{DRAFT_API_URL}/api/draft/league/{league_id}/trades"
+    response = client.get(url)
+    response.raise_for_status()
+    return response.json().get("trades", [])
+
+
 def get_future_fixtures(client: Any, event_id: int | None = None) -> list[dict]:
     """Return upcoming fixtures from the fantasy `fixtures` endpoint (`future=1`).
 

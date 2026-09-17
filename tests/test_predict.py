@@ -3,7 +3,9 @@ import pandas as pd
 from fpl_draft.predict import (
     compute_expected_points_for_entry,
     compute_expected_points_for_entry_from_my_team,
+    count_earned_points,
     get_players_on_form_by_position,
+    get_traded_players,
 )
 
 
@@ -113,3 +115,52 @@ def test_compute_expected_points_for_my_team_resolves_entry_with_explicit_event(
     df = compute_expected_points_for_entry_from_my_team(MyTeamClient(), event_id=4)
 
     assert list(df["next_opponent"]) == ["Liverpool (H)", "Arsenal (H)"]
+
+
+def test_get_traded_players_drops_players_without_a_trade():
+    class TradesClient:
+        def get(self, url, **kwargs):
+            if "/api/entry/" in url and "/event/" in url:
+                return DummyResponse({"picks": [{"element": 1}, {"element": 2}, {"element": 3}]})
+            if "/api/draft/league/" in url and url.endswith("/trades"):
+                return DummyResponse(
+                    {
+                        "trades": [
+                            {
+                                "event": 3,
+                                "tradeitem_set": [{"element_in": 1, "element_out": 10}],
+                            },
+                            {
+                                "event": 4,
+                                "tradeitem_set": [{"element_in": 20, "element_out": 2}],
+                            },
+                        ]
+                    }
+                )
+            raise AssertionError(f"Unexpected URL: {url}")
+
+    result = get_traded_players(TradesClient(), entry_id=1, event_id=5, league_id=55729)
+
+    assert result == [
+        {"player_id": 1, "traded_with": 10, "event": 3},
+        {"player_id": 2, "traded_with": 20, "event": 4},
+    ]
+
+
+def test_count_earned_points_sums_from_given_event_onward():
+    class ElementSummaryClient:
+        def get(self, url, **kwargs):
+            if "/api/element-summary/" in url:
+                return DummyResponse(
+                    {
+                        "history": [
+                            {"event": 1, "total_points": 8},
+                            {"event": 2, "total_points": 2},
+                            {"event": 3, "total_points": 5},
+                        ]
+                    }
+                )
+            raise AssertionError(f"Unexpected URL: {url}")
+
+    assert count_earned_points(ElementSummaryClient(), player_id=277, event=2) == 7
+
