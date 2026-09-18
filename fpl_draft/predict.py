@@ -173,10 +173,18 @@ def get_traded_players(
 ) -> list[dict]:
     """Return trades involving players currently on `entry_id`'s squad.
 
-    Players from `get_player_ids` with no matching trade are omitted.
+    Players from `get_player_ids` with no matching trade are omitted. Each
+    result includes the name of the player traded for (`traded_with_name`)
+    and the trade's `response_time` (falling back to `offer_time`) as
+    `traded_at`, so callers can render "traded for X on <date>" details.
     """
     player_ids = api.get_my_team_ids(client, entry_id)
     trades = api.get_trades(client, league_id)
+
+    data = api.get_bootstrap_static(client)
+    player_names = {
+        element.get("id"): element.get("web_name") for element in data.get("elements", [])
+    }
 
     results: list[dict] = []
     for player_id in player_ids:
@@ -199,7 +207,9 @@ def get_traded_players(
                     {
                         "player_id": player_id,
                         "traded_with": traded_with,
+                        "traded_with_name": player_names.get(traded_with),
                         "event": trade.get("event"),
+                        "traded_at": trade.get("response_time") or trade.get("offer_time"),
                     }
                 )
                 matched = True
@@ -209,3 +219,17 @@ def get_traded_players(
                 break
 
     return results
+
+
+def get_traded_players_for_my_team(
+    client: Any,
+    league_id: int,
+    event_id: int | None = None,
+) -> list[dict]:
+    """Resolve the persistent `my-team` entry, then return its traded-player info."""
+    entry_ids = api.get_my_entry_set(client)
+    if not entry_ids:
+        raise ValueError("No draft entry IDs were returned by bootstrap-dynamic.")
+    entry_id = entry_ids[0]
+
+    return get_traded_players(client, entry_id, event_id, league_id)

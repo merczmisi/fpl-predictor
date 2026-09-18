@@ -71,7 +71,67 @@ button:disabled {
 	color: #18231e;
 	min-width: 90px;
 	padding: 0.5rem 0.4rem;
+	position: relative;
 	text-align: center;
+}
+
+.player-info-btn {
+	align-items: center;
+	background: rgba(255, 255, 255, 0.85);
+	border-radius: 50%;
+	color: #18231e;
+	display: flex;
+	font-size: 0.7rem;
+	font-style: italic;
+	font-weight: bold;
+	height: 18px;
+	justify-content: center;
+	line-height: 1;
+	padding: 0;
+	position: absolute;
+	right: 2px;
+	top: 2px;
+	width: 18px;
+	z-index: 1;
+}
+
+.player-dialog {
+	border: 0;
+	border-radius: 8px;
+	color: #18231e;
+	max-width: 320px;
+	padding: 1rem 1.25rem;
+	width: 90%;
+}
+
+.player-dialog::backdrop {
+	background: rgba(0, 0, 0, 0.4);
+}
+
+.player-dialog h3 {
+	margin: 0 0 0.5rem 0;
+}
+
+.player-dialog-details {
+	display: grid;
+	column-gap: 0.75rem;
+	grid-template-columns: auto 1fr;
+	row-gap: 0.3rem;
+}
+
+.player-dialog-details dt {
+	color: #52645c;
+	font-weight: bold;
+}
+
+.player-dialog-details dd {
+	margin: 0;
+	text-align: right;
+}
+
+.player-dialog button {
+	margin-top: 1rem;
+	width: 100%;
 }
 
 .player-details-container {

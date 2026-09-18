@@ -1,9 +1,120 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 
 const POSITION_ORDER = [1, 2, 3, 4]; // 1 gk, 2 def, 3 mid, 4 fwd
 const POSITION_LABELS = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
 
-function PlayerCard({ player }) {
+function formatValue(value, suffix = "") {
+  if (value === null || value === undefined || value === "") return "-";
+  return `${value}${suffix}`;
+}
+
+function formatDate(isoString) {
+  if (!isoString) return null;
+  const parsed = new Date(isoString);
+  return Number.isNaN(parsed.getTime()) ? isoString : parsed.toLocaleDateString();
+}
+
+function PlayerInfoDialog({ player, onClose }) {
+  const dialogRef = useRef(null);
+
+  React.useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (player) {
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [player]);
+
+  const raw = player?.raw || {};
+  const fullName =
+    [raw.first_name, raw.second_name].filter(Boolean).join(" ") || player?.web_name;
+  const price = raw.now_cost !== undefined && raw.now_cost !== "" ? (Number(raw.now_cost) / 10).toFixed(1) : null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="player-dialog"
+      onClose={onClose}
+      onCancel={onClose}
+    >
+      {player && (
+        <>
+          <h3>{fullName}</h3>
+          <dl className="player-dialog-details">
+            <dt>Position</dt>
+            <dd>{POSITION_LABELS[player.element_type] || "-"}</dd>
+
+            <dt>Next opponent</dt>
+            <dd>{formatValue(player.next_opponent)}</dd>
+
+            <dt>Price</dt>
+            <dd>{price !== null ? `£${price}m` : "-"}</dd>
+
+            <dt>Selected by</dt>
+            <dd>{formatValue(raw.selected_by_percent, "%")}</dd>
+
+            <dt>Status</dt>
+            <dd>{formatValue(raw.status)}</dd>
+
+            {raw.news ? (
+              <>
+                <dt>News</dt>
+                <dd>{raw.news}</dd>
+              </>
+            ) : null}
+
+            <dt>Chance of playing</dt>
+            <dd>{formatValue(raw.chance_of_playing_next_round, "%")}</dd>
+
+            <dt>Form</dt>
+            <dd>{formatValue(raw.form)}</dd>
+
+            <dt>Points per game</dt>
+            <dd>{formatValue(raw.points_per_game)}</dd>
+
+            <dt>Total points</dt>
+            <dd>{formatValue(raw.total_points)}</dd>
+
+            <dt>Minutes</dt>
+            <dd>{formatValue(raw.minutes)}</dd>
+
+            <dt>Goals</dt>
+            <dd>{formatValue(raw.goals_scored)}</dd>
+
+            <dt>Assists</dt>
+            <dd>{formatValue(raw.assists)}</dd>
+
+            <dt>Clean sheets</dt>
+            <dd>{formatValue(raw.clean_sheets)}</dd>
+
+            <dt>Bonus</dt>
+            <dd>{formatValue(raw.bonus)}</dd>
+
+            <dt>Expected points</dt>
+            <dd>{formatValue(player.expected_points?.toFixed?.(1))}</dd>
+
+            {player.trade ? (
+              <>
+                <dt>Traded for</dt>
+                <dd>{formatValue(player.trade.traded_with_name)}</dd>
+
+                <dt>Traded on</dt>
+                <dd>{formatValue(formatDate(player.trade.traded_at))}</dd>
+              </>
+            ) : null}
+          </dl>
+          <button type="button" onClick={onClose} autoFocus>
+            Close
+          </button>
+        </>
+      )}
+    </dialog>
+  );
+}
+
+function PlayerCard({ player, onInfoClick }) {
   const diff = player.event_started
     ? player.event_points - player.expected_points
     : null;
@@ -14,6 +125,14 @@ function PlayerCard({ player }) {
 
   return (
     <div className={`player-card position-${player.element_type}`}>
+      <button
+        type="button"
+        className="player-info-btn"
+        aria-label={`Show info for ${player.web_name}`}
+        onClick={() => onInfoClick(player)}
+      >
+        i
+      </button>
       {shirtSrc ? (
         <img
           className="player-shirt"
@@ -52,6 +171,8 @@ function PlayerCard({ player }) {
 }
 
 export default function TeamPitch({ starting = [], subs = [] }) {
+  const [infoPlayer, setInfoPlayer] = useState(null);
+
   if (!starting || starting.length === 0) {
     return <div>No data — click Load my team to see your formation.</div>;
   }
@@ -65,7 +186,7 @@ export default function TeamPitch({ starting = [], subs = [] }) {
       {rows.map((row, idx) => (
         <div className="pitch-row" key={idx}>
           {row.map((p) => (
-            <PlayerCard key={p.id} player={p} />
+            <PlayerCard key={p.id} player={p} onInfoClick={setInfoPlayer} />
           ))}
         </div>
       ))}
@@ -75,11 +196,13 @@ export default function TeamPitch({ starting = [], subs = [] }) {
           <div className="bench-label">Substitutes</div>
           <div className="pitch-row">
             {subs.map((p) => (
-              <PlayerCard key={p.id} player={p} />
+              <PlayerCard key={p.id} player={p} onInfoClick={setInfoPlayer} />
             ))}
           </div>
         </div>
       )}
+
+      <PlayerInfoDialog player={infoPlayer} onClose={() => setInfoPlayer(null)} />
     </div>
   );
 }

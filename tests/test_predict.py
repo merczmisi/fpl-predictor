@@ -120,18 +120,29 @@ def test_compute_expected_points_for_my_team_resolves_entry_with_explicit_event(
 def test_get_traded_players_drops_players_without_a_trade():
     class TradesClient:
         def get(self, url, **kwargs):
-            if "/api/entry/" in url and "/event/" in url:
+            if "/api/entry/" in url and "/my-team" in url:
                 return DummyResponse({"picks": [{"element": 1}, {"element": 2}, {"element": 3}]})
+            if "bootstrap-static" in url:
+                return DummyResponse(
+                    {
+                        "elements": [
+                            {"id": 10, "web_name": "Player Ten"},
+                            {"id": 20, "web_name": "Player Twenty"},
+                        ]
+                    }
+                )
             if "/api/draft/league/" in url and url.endswith("/trades"):
                 return DummyResponse(
                     {
                         "trades": [
                             {
                                 "event": 3,
+                                "response_time": "2026-08-30T17:29:34.020960Z",
                                 "tradeitem_set": [{"element_in": 1, "element_out": 10}],
                             },
                             {
                                 "event": 4,
+                                "response_time": "2026-09-10T20:49:51.085070Z",
                                 "tradeitem_set": [{"element_in": 20, "element_out": 2}],
                             },
                         ]
@@ -142,8 +153,20 @@ def test_get_traded_players_drops_players_without_a_trade():
     result = get_traded_players(TradesClient(), entry_id=1, event_id=5, league_id=55729)
 
     assert result == [
-        {"player_id": 1, "traded_with": 10, "event": 3},
-        {"player_id": 2, "traded_with": 20, "event": 4},
+        {
+            "player_id": 1,
+            "traded_with": 10,
+            "traded_with_name": "Player Ten",
+            "event": 3,
+            "traded_at": "2026-08-30T17:29:34.020960Z",
+        },
+        {
+            "player_id": 2,
+            "traded_with": 20,
+            "traded_with_name": "Player Twenty",
+            "event": 4,
+            "traded_at": "2026-09-10T20:49:51.085070Z",
+        },
     ]
 
 

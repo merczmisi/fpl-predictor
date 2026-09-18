@@ -26,6 +26,7 @@ export default function App() {
   const [currentEvent, setCurrentEvent] = useState(null);
   const [leagueEntries, setLeagueEntries] = useState([]);
   const [selectedTeamName, setSelectedTeamName] = useState("");
+  const [tradedPlayers, setTradedPlayers] = useState({});
 
   useEffect(() => {
     async function checkConnection() {
@@ -130,6 +131,24 @@ export default function App() {
     }
   }
 
+  // Best-effort: trade history is supplementary, so failures here shouldn't block team loading.
+  async function loadTradedPlayers(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return;
+
+      const body = await res.json();
+      const byPlayerId = {};
+      for (const trade of body.data || []) {
+        byPlayerId[trade.player_id] = trade;
+      }
+      setTradedPlayers(byPlayerId);
+      console.log("Traded players loaded:", byPlayerId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function loadData() {
     setLoading(true);
     setError("");
@@ -143,6 +162,7 @@ export default function App() {
       const body = await res.json();
       setPlayers(body.data || []);
       setSelectedTeamName("My team");
+      loadTradedPlayers(`/traded_players/my_team?league_id=${LEAGUE_ID}`);
     } catch (err) {
       console.error(err);
       setError(err.message || String(err));
@@ -170,6 +190,9 @@ export default function App() {
       // setCurrentEventFinished(false);
       const entry = leagueEntries.find((e) => e.entry_id === entry_id);
       setSelectedTeamName(entry ? entry.entry_name : "");
+      loadTradedPlayers(
+        `/traded_players?entry_id=${encodeURIComponent(entry_id)}&league_id=${LEAGUE_ID}`
+      );
     } catch (err) {
       console.error(err);
       setError(err.message || String(err));
@@ -190,10 +213,13 @@ export default function App() {
       event_points: Number(p.event_points || 0),
       next_opponent: p.next_opponent || null,
       expected_points: Number(p.expected_points || 0),
+      // Keep the full raw record so the info dialog can show extra details.
+      raw: p,
+      trade: tradedPlayers[p.id] || null,
     }));
 
     return { starting: normalized.slice(0, 11), subs: normalized.slice(11, 15) };
-  }, [players]);
+  }, [players, tradedPlayers]);
 
   // Derive a sorted, selected columns view similar to the pandas snippet
   const selected = useMemo(() => {
