@@ -134,6 +134,18 @@ button:disabled {
 	width: 100%;
 }
 
+.trade-outcome {
+	font-weight: bold;
+}
+
+.trade-outcome-positive {
+	color: #06b771;
+}
+
+.trade-outcome-negative {
+	color: #f13106;
+}
+
 .player-details-container {
 	background: rgba(255, 255, 255, 0.92);
 	border-radius: 6px;

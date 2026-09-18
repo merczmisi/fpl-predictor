@@ -148,6 +148,15 @@ def test_get_traded_players_drops_players_without_a_trade():
                         ]
                     }
                 )
+            if "/api/element-summary/" in url:
+                history_by_player = {
+                    1: [{"event": 3, "total_points": 4}, {"event": 4, "total_points": 6}],
+                    10: [{"event": 3, "total_points": 1}, {"event": 4, "total_points": 2}],
+                    2: [{"event": 4, "total_points": 5}],
+                    20: [{"event": 4, "total_points": 3}],
+                }
+                player_id = int(url.rsplit("/", 1)[-1])
+                return DummyResponse({"history": history_by_player[player_id]})
             raise AssertionError(f"Unexpected URL: {url}")
 
     result = get_traded_players(TradesClient(), entry_id=1, event_id=5, league_id=55729)
@@ -159,6 +168,8 @@ def test_get_traded_players_drops_players_without_a_trade():
             "traded_with_name": "Player Ten",
             "event": 3,
             "traded_at": "2026-08-30T17:29:34.020960Z",
+            "points_since_trade": 10,
+            "traded_with_points_since_trade": 3,
         },
         {
             "player_id": 2,
@@ -166,6 +177,8 @@ def test_get_traded_players_drops_players_without_a_trade():
             "traded_with_name": "Player Twenty",
             "event": 4,
             "traded_at": "2026-09-10T20:49:51.085070Z",
+            "points_since_trade": 5,
+            "traded_with_points_since_trade": 3,
         },
     ]
 

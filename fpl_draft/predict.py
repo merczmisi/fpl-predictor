@@ -174,9 +174,12 @@ def get_traded_players(
     """Return trades involving players currently on `entry_id`'s squad.
 
     Players from `get_player_ids` with no matching trade are omitted. Each
-    result includes the name of the player traded for (`traded_with_name`)
-    and the trade's `response_time` (falling back to `offer_time`) as
-    `traded_at`, so callers can render "traded for X on <date>" details.
+    result includes the name of the player traded for (`traded_with_name`),
+    the trade's `response_time` (falling back to `offer_time`) as
+    `traded_at`, and each player's points earned since the trade
+    (`points_since_trade` / `traded_with_points_since_trade`), so callers
+    can render "traded for X on <date>" details alongside how each side
+    of the trade performed afterwards.
     """
     player_ids = api.get_my_team_ids(client, entry_id)
     trades = api.get_trades(client, league_id)
@@ -203,13 +206,23 @@ def get_traded_players(
                 else:
                     continue
 
+                event = trade.get("event")
+                points_since_trade = (
+                    count_earned_points(client, player_id, event) if event is not None else None
+                )
+                traded_with_points_since_trade = (
+                    count_earned_points(client, traded_with, event) if event is not None else None
+                )
+
                 results.append(
                     {
                         "player_id": player_id,
                         "traded_with": traded_with,
                         "traded_with_name": player_names.get(traded_with),
-                        "event": trade.get("event"),
+                        "event": event,
                         "traded_at": trade.get("response_time") or trade.get("offer_time"),
+                        "points_since_trade": points_since_trade,
+                        "traded_with_points_since_trade": traded_with_points_since_trade,
                     }
                 )
                 matched = True

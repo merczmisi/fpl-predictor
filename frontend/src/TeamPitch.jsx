@@ -14,6 +14,25 @@ function formatDate(isoString) {
   return Number.isNaN(parsed.getTime()) ? isoString : parsed.toLocaleDateString();
 }
 
+// Show a green/red arrow when the trade's outcome is decided, nothing when tied or unknown.
+function tradeOutcomeIndicator(trade) {
+  const mine = trade?.points_since_trade;
+  const theirs = trade?.traded_with_points_since_trade;
+  if (mine === null || mine === undefined || theirs === null || theirs === undefined) return null;
+  if (mine === theirs) return null;
+
+  const won = mine > theirs;
+  return (
+    <span
+      className={`trade-outcome ${won ? "trade-outcome-positive" : "trade-outcome-negative"}`}
+      title={won ? "Earned more than the traded-away player" : "Earned less than the traded-away player"}
+    >
+      {" "}
+      {won ? "▲" : "▼"}
+    </span>
+  );
+}
+
 function PlayerInfoDialog({ player, onClose }) {
   const dialogRef = useRef(null);
 
@@ -102,6 +121,15 @@ function PlayerInfoDialog({ player, onClose }) {
 
                 <dt>Traded on</dt>
                 <dd>{formatValue(formatDate(player.trade.traded_at))}</dd>
+
+                <dt>Points since trade</dt>
+                <dd>
+                  {formatValue(player.trade.points_since_trade)}
+                  {tradeOutcomeIndicator(player.trade)}
+                </dd>
+
+                <dt>{formatValue(player.trade.traded_with_name)} points since trade</dt>
+                <dd>{formatValue(player.trade.traded_with_points_since_trade)}</dd>
               </>
             ) : null}
           </dl>
