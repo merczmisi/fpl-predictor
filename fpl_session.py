@@ -418,8 +418,8 @@ class FPLSession:
         need to resolve the active entry without passing an explicit ID.
         """
         return (
-            __import__("fpl_draft.api", fromlist=["get_bootstrap_dynamic_entry_set"])  # lazy import
-            .get_bootstrap_dynamic_entry_set(self)
+            __import__("fpl_draft.api", fromlist=["get_my_entry_set"])  # lazy import
+            .get_my_entry_set(self)
         )
 
     def sync_league_history(

@@ -25,10 +25,31 @@ class DummyHttpClient:
 
         # simple routing
         if url.endswith("/api/bootstrap-static/"):
-            return DummyResp(200, {"elements": [
-                {"id": 1, "form": "2.0", "points_per_game": "4.0", "chance_of_playing_next_round": "100", "web_name": "A", "team": 1, "element_type": 1},
-                {"id": 2, "form": "1.5", "points_per_game": "2.0", "chance_of_playing_next_round": "50", "web_name": "B", "team": 2, "element_type": 2},
-            ]})
+            return DummyResp(
+                200,
+                {
+                    "elements": [
+                        {
+                            "id": 1,
+                            "form": "2.0",
+                            "points_per_game": "4.0",
+                            "chance_of_playing_next_round": "100",
+                            "web_name": "A",
+                            "team": 1,
+                            "element_type": 1,
+                        },
+                        {
+                            "id": 2,
+                            "form": "1.5",
+                            "points_per_game": "2.0",
+                            "chance_of_playing_next_round": "50",
+                            "web_name": "B",
+                            "team": 2,
+                            "element_type": 2,
+                        },
+                    ]
+                },
+            )
 
         if "/api/entry/" in url and "/event/" in url:
             # return picks
@@ -44,25 +65,16 @@ class DummyHttpClient:
 
 
 def test_fplsession_expected_points_integration():
+    # Create session but replace auth and http with test doubles.
     from fpl_session import FPLSession
 
-    # Create session but replace auth and http with test doubles.
     s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
+    s.auth = _DummyAuth()
+    s.http = _make_expected_points_http_client(
+        {"current_event": 3, "current_event_finished": False, "next_event": 4}
+    )
 
-    class DummyAuth:
-        def ensure_authenticated(self, entry_id=0):
-            return "mock-token"
-
-        def start(self):
-            return None
-
-        def close(self):
-            return None
-
-    s.auth = DummyAuth()
-    s.http = DummyHttpClient(token_expected="mock-token")
-
-    df = s.get_expected_points(299995, 2)
+    df = s.get_expected_points(999, 4)
 
     # check columns present and expected points numeric
     assert "expected_points" in df.columns
@@ -73,35 +85,15 @@ def test_fplsession_expected_points_integration():
 def test_fplsession_get_my_team_uses_current_entry_set_when_no_id_given():
     from fpl_session import FPLSession
 
-    class DummyAuth:
-        def ensure_authenticated(self, entry_id=0):
-            return "mock-token"
-
-        def start(self):
-            return None
-
-        def close(self):
-            return None
-
-    class DummyHttpClient:
-        def __init__(self):
-            self.calls = []
-
-        def request(self, method, url, headers=None, **kwargs):
-            self.calls.append((method, url, headers))
-            if url == "https://draft.premierleague.com/api/bootstrap-dynamic":
-                return DummyResp(200, {"player": {"entry_set": [12345]}})
-            if url == "https://draft.premierleague.com/api/entry/12345/my-team":
-                return DummyResp(200, {"picks": [{"element": 10}]})
-            return DummyResp(404, {})
-
     s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
-    s.auth = DummyAuth()
-    s.http = DummyHttpClient()
+    s.auth = _DummyAuth()
+    s.http = _make_expected_points_http_client(
+        {"current_event": 3, "current_event_finished": False, "next_event": 4}
+    )
 
     team = s.get_my_team()
 
-    assert team["picks"][0]["element"] == 10
+    assert team["picks"][0]["element"] == 1
 
 
 def _make_expected_points_http_client(game_payload):
@@ -123,8 +115,20 @@ def _make_expected_points_http_client(game_payload):
                     200,
                     {
                         "elements": [
-                            {"id": 1, "form": "5.0", "points_per_game": "3.0", "chance_of_playing_next_round": "100", "team": 1},
-                            {"id": 2, "form": "2.0", "points_per_game": "1.0", "chance_of_playing_next_round": "100", "team": 2},
+                            {
+                                "id": 1,
+                                "form": "5.0",
+                                "points_per_game": "3.0",
+                                "chance_of_playing_next_round": "100",
+                                "team": 1,
+                            },
+                            {
+                                "id": 2,
+                                "form": "2.0",
+                                "points_per_game": "1.0",
+                                "chance_of_playing_next_round": "100",
+                                "team": 2,
+                            },
                         ],
                         "teams": [
                             {"id": 1, "name": "Arsenal", "code": 3},
@@ -138,7 +142,24 @@ def _make_expected_points_http_client(game_payload):
             if url == "https://draft.premierleague.com/api/event/4/fixtures":
                 return DummyResp(200, [{"team_h": 2, "team_a": 1}])
             if url == "https://fantasy.premierleague.com/api/fixtures/":
-                return DummyResp(200, [])
+                return DummyResp(
+                    200,
+                    [
+                        {
+                            "code": 2645237,
+                            "event": 5,
+                            "finished": "false",
+                            "id": 42,
+                            "started": "false",
+                            "team_a": 1,
+                            "team_h": 2,
+                            "team_h_difficulty": 4,
+                            "team_a_difficulty": 3,
+                        }
+                    ],
+                )
+            if url == "https://draft.premierleague.com/api/entry/999/event/4":
+                return DummyResp(200, {"picks": [{"element": 1}, {"element": 2}]})
             return DummyResp(404, {})
 
     return DummyHttpClient()
@@ -212,9 +233,7 @@ def test_fplsession_refreshes_auth_after_401():
     session.auth = DummyAuth()
     session.http = DummyHttpClient()
 
-    response = session.get(
-        "https://draft.premierleague.com/api/entry/42/my-team"
-    )
+    response = session.get("https://draft.premierleague.com/api/entry/42/my-team")
 
     assert response.status_code == 200
     assert session.auth.refresh_calls == [42]

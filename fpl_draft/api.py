@@ -119,15 +119,22 @@ def get_trades(client: Any, league_id: int) -> list[dict]:
     return response.json().get("trades", [])
 
 
-def get_future_fixtures(client: Any, event_id: int | None = None) -> list[dict]:
-    """Return upcoming fixtures from the fantasy `fixtures` endpoint (`future=1`).
+def get_fixtures(
+    client: Any,
+    event_id: int | None = None,
+    future: int | None = None,
+) -> list[dict]:
+    """Return fixtures filtered by either gameweek or future flag.
 
-    If `event_id` is given, only fixtures for that gameweek are returned.
+    Exactly one of `event_id` or `future` must be provided.
     """
+    if (event_id is None) == (future is None):
+        raise ValueError("Exactly one of event_id or future must be provided")
+
     url = f"{FANTASY_API_URL}/api/fixtures/"
-    params = {"future": 1}
-    if event_id is not None:
-        params["event"] = event_id
+
+    params = {"event": event_id} if event_id is not None else {"future": future}
+
     response = client.get(url, params=params)
     response.raise_for_status()
     return response.json()

@@ -186,8 +186,6 @@ export default function App() {
 
       const body = await res.json();
       setPlayers(body.data || []);
-      // setEventId(currentEvent);
-      // setCurrentEventFinished(false);
       const entry = leagueEntries.find((e) => e.entry_id === entry_id);
       setSelectedTeamName(entry ? entry.entry_name : "");
       loadTradedPlayers(

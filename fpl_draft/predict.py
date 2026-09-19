@@ -70,6 +70,10 @@ def compute_expected_points_for_entry(
         lambda team_id: get_next_opponent(team_id, fixtures, team_names)
     )
     selected["team_code"] = selected["team"].map(team_codes)
+    
+    selected["event_started"] = selected["team"].apply(
+        lambda team_id: get_fixture_started(team_id, fixtures)
+    )
 
     # Ensure numeric columns
     selected["form"] = pd.to_numeric(selected["form"], errors="coerce")
@@ -84,7 +88,7 @@ def compute_expected_points_for_entry(
 
     # Single batch fetch of upcoming fixtures, looked up per-team instead of
     # issuing one element-summary request per player.
-    future_fixtures = api.get_future_fixtures(client, event_id + 1)
+    future_fixtures = api.get_fixtures(client, event_id)
     selected["next_match_difficulty"] = selected["team"].apply(
         lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )
@@ -146,7 +150,7 @@ def compute_expected_points_for_entry_from_my_team(
 
     selected = compute_base_points(selected)
 
-    future_fixtures = api.get_future_fixtures(client, event_id)
+    future_fixtures = api.get_fixtures(client, event_id)
     selected["next_match_difficulty"] = selected["team"].apply(
         lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )

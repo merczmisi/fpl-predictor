@@ -87,7 +87,7 @@ def test_get_trades():
     assert trades[0]["tradeitem_set"][0]["element_in"] == 427
 
 
-def test_get_fixtures():
+def test_get_fixtures_by_event_id():
     from fpl_draft import api
 
     fixtures_url = "https://fantasy.premierleague.com/api/fixtures/"
@@ -106,12 +106,36 @@ def test_get_fixtures():
         }
     )
 
-    fixtures = api.get_future_fixtures(client, event_id=5)
+    fixtures = api.get_fixtures(client, event_id=5)
 
     assert fixtures[0]["id"] == 41
     assert fixtures[0]["team_h"] == 4
-    assert client.calls == [(fixtures_url, {"params": {"future": 1, "event": 5}})]
+    assert client.calls == [(fixtures_url, {"params": {"event": 5}})]
+    
+def test_get_fixtures_by_future_flag():
+    from fpl_draft import api
 
+    fixtures_url = "https://fantasy.premierleague.com/api/fixtures/"
+    client = DummyClient(
+        {
+            fixtures_url: [
+                {
+                    "id": 41,
+                    "event": 5,
+                    "team_h": 4,
+                    "team_a": 6,
+                    "team_h_difficulty": 4,
+                    "team_a_difficulty": 3,
+                }
+            ]
+        }
+    )
+
+    fixtures = api.get_fixtures(client, future=1)
+
+    assert fixtures[0]["id"] == 41
+    assert fixtures[0]["team_h"] == 4
+    assert client.calls == [(fixtures_url, {"params": {"future": 1}})]
 
 
 def test_get_bootstrap_dynamic_entry_set():
