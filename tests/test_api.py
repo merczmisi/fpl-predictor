@@ -138,6 +138,26 @@ def test_get_fixtures_by_future_flag():
     assert client.calls == [(fixtures_url, {"params": {"future": 1}})]
 
 
+def test_get_predictions_uses_public_gameweek_file_without_auth(monkeypatch):
+    from fpl_draft import api
+
+    expected_url = (
+        "https://raw.githubusercontent.com/merczmisi/fpl_predict/main/"
+        "predictions/gw_7.json"
+    )
+    expected_data = {"gw": 7, "players": [{"id": 411, "pred_total_points": 6.7}]}
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append((url, kwargs))
+        return DummyResp(expected_data)
+
+    monkeypatch.setattr(api.requests, "get", fake_get)
+
+    assert api.get_predictions(7) == expected_data
+    assert calls == [(expected_url, {"timeout": 15})]
+
+
 def test_get_bootstrap_dynamic_entry_set():
     from fpl_draft import api
 

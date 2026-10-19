@@ -64,10 +64,27 @@ class DummyHttpClient:
         return DummyResp(404, {})
 
 
-def test_fplsession_expected_points_integration():
+def _stub_predictions(monkeypatch):
+    from fpl_draft import api
+
+    monkeypatch.setattr(
+        api,
+        "get_predictions",
+        lambda event_id: {
+            "gw": event_id,
+            "players": [
+                {"id": 1, "pred_total_points": 3.25},
+                {"id": 2, "pred_total_points": 1.75},
+            ],
+        },
+    )
+
+
+def test_fplsession_expected_points_integration(monkeypatch):
     # Create session but replace auth and http with test doubles.
     from fpl_session import FPLSession
 
+    _stub_predictions(monkeypatch)
     s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
     s.auth = _DummyAuth()
     s.http = _make_expected_points_http_client(
@@ -176,9 +193,12 @@ class _DummyAuth:
         return None
 
 
-def test_fplsession_get_expected_points_for_my_team_uses_current_event_when_not_finished():
+def test_fplsession_get_expected_points_for_my_team_uses_current_event_when_not_finished(
+    monkeypatch,
+):
     from fpl_session import FPLSession
 
+    _stub_predictions(monkeypatch)
     s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
     s.auth = _DummyAuth()
     s.http = _make_expected_points_http_client(
@@ -191,9 +211,12 @@ def test_fplsession_get_expected_points_for_my_team_uses_current_event_when_not_
     assert pd.isna(df["next_opponent"].iloc[1])
 
 
-def test_fplsession_get_expected_points_for_my_team_uses_next_event_when_finished():
+def test_fplsession_get_expected_points_for_my_team_uses_next_event_when_finished(
+    monkeypatch,
+):
     from fpl_session import FPLSession
 
+    _stub_predictions(monkeypatch)
     s = FPLSession(profile_dir="~/.fpl-playwright", headless=True)
     s.auth = _DummyAuth()
     s.http = _make_expected_points_http_client(

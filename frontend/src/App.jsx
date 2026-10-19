@@ -178,7 +178,7 @@ export default function App() {
     try {
       // Always use the current event (not next), per league-entry comparisons.
       const res = await fetch(
-        `/expected_points?entry_id=${encodeURIComponent(entry_id)}&event_id=${encodeURIComponent(currentEvent)}`
+        `/expected_points?entry_id=${encodeURIComponent(entry_id)}&event_id=${encodeURIComponent(eventId)}`
       );
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);

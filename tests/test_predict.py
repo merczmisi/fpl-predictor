@@ -72,17 +72,28 @@ class DummyClient:
         raise AssertionError(f"Unexpected URL: {url}")
 
 
-def test_compute_expected_points_simple():
+def test_compute_expected_points_simple(monkeypatch):
+    from fpl_draft import api
+
+    monkeypatch.setattr(
+        api,
+        "get_predictions",
+        lambda event_id: {
+            "gw": event_id,
+            "players": [
+                {"id": 1, "pred_total_points": 7.31},
+                {"id": 2, "pred_total_points": 2.45},
+            ],
+        },
+    )
     client = DummyClient()
 
     df = compute_expected_points_for_entry(client, entry_id=999, event_id=4)
 
     assert list(df["id"]) == [1, 2]
     assert list(df["next_opponent"]) == ["Liverpool (H)", "Arsenal (H)"]
-
-    # expected_points: player1 -> base=4.2, fdr(1)=1.15 -> 4.83; player2 -> base=1.6
     vals = list(df["expected_points"].astype(float).round(2))
-    assert vals == [4.83, 1.6]
+    assert vals == [7.31, 2.45]
 
 
 def test_get_players_on_form_by_position():
@@ -103,7 +114,23 @@ def test_get_players_on_form_by_position():
     assert result.loc[0, "base_points"] == 5.2
 
 
-def test_compute_expected_points_for_my_team_resolves_entry_with_explicit_event():
+def test_compute_expected_points_for_my_team_resolves_entry_with_explicit_event(
+    monkeypatch,
+):
+    from fpl_draft import api
+
+    monkeypatch.setattr(
+        api,
+        "get_predictions",
+        lambda event_id: {
+            "gw": event_id,
+            "players": [
+                {"id": 1, "pred_total_points": 7.31},
+                {"id": 2, "pred_total_points": 2.45},
+            ],
+        },
+    )
+
     class MyTeamClient(DummyClient):
         def get(self, url, **kwargs):
             if url.endswith("/api/bootstrap-dynamic"):
@@ -115,6 +142,24 @@ def test_compute_expected_points_for_my_team_resolves_entry_with_explicit_event(
     df = compute_expected_points_for_entry_from_my_team(MyTeamClient(), event_id=4)
 
     assert list(df["next_opponent"]) == ["Liverpool (H)", "Arsenal (H)"]
+    assert list(df["expected_points"]) == [7.31, 2.45]
+
+
+def test_compute_expected_points_rejects_wrong_gameweek(monkeypatch):
+    from fpl_draft import api
+
+    monkeypatch.setattr(
+        api,
+        "get_predictions",
+        lambda event_id: {"gw": event_id + 1, "players": []},
+    )
+
+    try:
+        compute_expected_points_for_entry(DummyClient(), entry_id=999, event_id=4)
+    except ValueError as exc:
+        assert "does not match requested event 4" in str(exc)
+    else:
+        raise AssertionError("Expected a gameweek mismatch to be rejected")
 
 
 def test_get_traded_players_drops_players_without_a_trade():
@@ -199,4 +244,3 @@ def test_count_earned_points_sums_from_given_event_onward():
             raise AssertionError(f"Unexpected URL: {url}")
 
     assert count_earned_points(ElementSummaryClient(), player_id=277, event=2) == 7
-

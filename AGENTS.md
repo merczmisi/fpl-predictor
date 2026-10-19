@@ -3,19 +3,21 @@
 Purpose
 - Provide concise guidance for automated or human agents working on this repository: architecture overview, FPL domain assumptions, development and test commands, coding conventions, and explicit rules agents must follow.
 
+Changelog
+- 2026-10-16: Expected points now come from the public `fpl_predict` gameweek JSON; FPL data remains the source for squad and display metadata.
+
 **Architecture (high level)**
 - **Auth layer**: Browser-backed authentication is handled by the Playwright-backed adapter; tokens are surfaced to Python via a token provider. Agents should not reimplement OAuth flows — call the existing adapter or mock it in tests.
 - **HTTP client**: `FplHttpClient` wraps a `requests`-like session and injects `X-Api-Authorization` headers. It encapsulates retry-on-401 behavior. Use it for real HTTP calls; tests should use small test doubles instead.
-- **API wrappers**: Thin functions live in `fpl_draft/api.py`. They accept any `client` object with a `.get(...)` method that returns a `Response`-like object. Prefer these wrappers for endpoint semantics.
+- **API wrappers**: Thin functions live in `fpl_draft/api.py`. FPL endpoint wrappers accept a `client` object; the public prediction feed is fetched separately without FPL authorization. Prefer these wrappers for endpoint semantics.
 - **Features**: Pure data-transform functions (in `fpl_draft/features.py`) operate on pandas DataFrames and are the primary place for feature-engineering logic.
-- **Orchestrator**: `fpl_draft/predict.py` composes API wrappers + feature functions and is the recommended entrypoint for prediction logic. `FPLSession.get_expected_points` delegates to it.
+- **Orchestrator**: `fpl_draft/predict.py` joins the selected squad to per-gameweek predictions from `merczmisi/fpl_predict`; FPL endpoints provide squad and display metadata. `FPLSession.get_expected_points` delegates to it.
 
 **Important FPL domain assumptions & invariants**
 - Player IDs returned by `get_player_ids` correspond to `elements.id` in `bootstrap-static`.
-- `chance_of_playing_next_round` is treated as a percentage (0–100). Missing values are treated as 100 by the current pipeline.
-- The next fixture is taken as the first element of the `fixtures` list returned by `element-summary`. If `fixtures` is empty, `next_match_difficulty` is `None` and fixture multipliers are skipped.
-- Base points are computed as: 0.6 * `form` + 0.4 * `points_per_game`. This formula is intentionally explicit in `fpl_draft/features.py`.
-- Default FDR multiplier mapping is: {1:1.15, 2:1.08, 3:1.00, 4:0.92, 5:0.85}. Any change to these values must be reflected in tests and documented.
+- `chance_of_playing_next_round` is FPL bootstrap metadata; the external prediction model supplies its own expected availability in `pred_total_points`.
+- `expected_points` comes from `pred_total_points` in `predictions/gw_<event_id>.json`; the feed's `gw` must match the requested event and every selected player must have a prediction.
+- Fixture labels come from the Draft event-fixtures endpoint and difficulty from the FPL fixtures endpoint. The legacy base-points and FDR helpers in `fpl_draft/features.py` are not used to calculate expected points.
 - Network 401 responses are expected; the correct behavior is to trigger the browser auth refresh and retry once. Do not silence repeated 401s.
 
 **Development commands**

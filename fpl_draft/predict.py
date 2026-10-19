@@ -6,9 +6,6 @@ import pandas as pd
 
 from fpl_draft import api
 from fpl_draft.features import (
-    compute_base_points,
-    apply_fdr_multiplier,
-    compute_expected_points_from_df,
     get_fixture_started,
     get_next_opponent,
     get_team_fixture_difficulty,
@@ -40,25 +37,61 @@ def get_my_players_by_position(
 def compute_expected_points_for_entry(
     client: Any, entry_id: int, event_id: int
 ) -> pd.DataFrame:
-    """Orchestrate expected points computation for an entry/event.
-
-    - Fetch player ids via the API wrappers (uses `client.get`).
-    - Fetch `bootstrap-static` and select the players in the same order.
-    - Compute base points, apply FDR multipliers, and final expected points.
-
-    The function intentionally accepts a thin `client` object with a
-    `.get(url, **kwargs)` method so it can be used with `requests.Session`,
-    `FplHttpClient` wrappers, or simple test doubles.
-    """
-
+    """Return external model predictions for an entry/event."""
     player_ids = api.get_player_ids(client, entry_id, event_id)
+    return _build_expected_points_dataframe(client, player_ids, event_id)
+
+
+def _build_expected_points_dataframe(
+    client: Any, player_ids: list[int], event_id: int
+) -> pd.DataFrame:
+    prediction_data = api.get_predictions(event_id)
+    if prediction_data.get("gw") != event_id:
+        raise ValueError(
+            f"Prediction file gameweek {prediction_data.get('gw')!r} "
+            f"does not match requested event {event_id}."
+        )
+
+    prediction_players = prediction_data.get("players")
+    required_columns = {"id", "pred_total_points"}
+    if not isinstance(prediction_players, list) or not prediction_players:
+        raise ValueError(f"Prediction file for event {event_id} has no players.")
+    predictions = pd.DataFrame(prediction_players)
+    if not required_columns.issubset(predictions.columns):
+        missing_columns = sorted(required_columns - set(predictions.columns))
+        raise ValueError(
+            f"Prediction file for event {event_id} is missing fields: "
+            f"{', '.join(missing_columns)}."
+        )
+
+    predictions["id"] = pd.to_numeric(predictions["id"], errors="coerce")
+    predictions["pred_total_points"] = pd.to_numeric(
+        predictions["pred_total_points"], errors="coerce"
+    )
+    if (
+        predictions[["id", "pred_total_points"]].isna().any().any()
+        or predictions["id"].mod(1).ne(0).any()
+    ):
+        raise ValueError(
+            f"Prediction file for event {event_id} contains invalid player IDs "
+            "or predicted points."
+        )
+    if predictions["id"].duplicated().any():
+        raise ValueError(
+            f"Prediction file for event {event_id} contains duplicate player IDs."
+        )
+    predictions["id"] = predictions["id"].astype(int)
+
+    missing_ids = sorted(set(player_ids) - set(predictions["id"]))
+    if missing_ids:
+        raise ValueError(
+            f"Prediction file for event {event_id} is missing player IDs: "
+            f"{', '.join(map(str, missing_ids))}."
+        )
 
     data = api.get_bootstrap_static(client)
-
     players = pd.json_normalize(data["elements"])
-    
     fixtures = api.get_event_fixtures(client, event_id)
-    
     teams = pd.json_normalize(data["teams"])
 
     selected = players.set_index("id").loc[player_ids].reset_index()
@@ -75,27 +108,12 @@ def compute_expected_points_for_entry(
         lambda team_id: get_fixture_started(team_id, fixtures)
     )
 
-    # Ensure numeric columns
-    selected["form"] = pd.to_numeric(selected["form"], errors="coerce")
-    selected["points_per_game"] = pd.to_numeric(
-        selected["points_per_game"], errors="coerce"
-    )
-    selected["chance_of_playing_next_round"] = pd.to_numeric(
-        selected["chance_of_playing_next_round"], errors="coerce"
-    )
-
-    selected = compute_base_points(selected)
-
-    # Single batch fetch of upcoming fixtures, looked up per-team instead of
-    # issuing one element-summary request per player.
     future_fixtures = api.get_fixtures(client, event_id)
     selected["next_match_difficulty"] = selected["team"].apply(
         lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
     )
-
-    selected = apply_fdr_multiplier(selected)
-
-    selected = compute_expected_points_from_df(selected)
+    prediction_points = predictions.set_index("id")["pred_total_points"]
+    selected["expected_points"] = selected["id"].map(prediction_points)
 
     return selected
 
@@ -104,13 +122,7 @@ def compute_expected_points_for_entry_from_my_team(
     client: Any,
     event_id: int,
 ) -> pd.DataFrame:
-    """Compute expected points for an entry using the persistent `my-team`.
-
-    - Resolve the active entry when no entry ID is provided.
-    - Fetch player ids from the entry's `my-team` payload.
-    - Fetch `bootstrap-static` and select the players in the same order.
-    - Compute base points, apply FDR multipliers, and final expected points.
-    """
+    """Return external model predictions for the persistent `my-team` squad."""
 
     entry_ids = api.get_my_entry_set(client)
     if not entry_ids:
@@ -118,48 +130,7 @@ def compute_expected_points_for_entry_from_my_team(
     entry_id = entry_ids[0]
 
     player_ids = api.get_my_team_ids(client, entry_id)
-
-    data = api.get_bootstrap_static(client)
-
-    players = pd.json_normalize(data["elements"])
-    fixtures = api.get_event_fixtures(client, event_id)
-    teams = pd.json_normalize(data["teams"])
-
-    selected = players.set_index("id").loc[player_ids].reset_index()
-
-    team_names = teams.set_index("id")["name"].to_dict()
-    team_codes = teams.set_index("id")["code"].to_dict()
-
-    selected["next_opponent"] = selected["team"].apply(
-        lambda team_id: get_next_opponent(team_id, fixtures, team_names)
-    )
-    selected["team_code"] = selected["team"].map(team_codes)
-
-    selected["event_started"] = selected["team"].apply(
-        lambda team_id: get_fixture_started(team_id, fixtures)
-    )
-
-    # Ensure numeric columns
-    selected["form"] = pd.to_numeric(selected["form"], errors="coerce")
-    selected["points_per_game"] = pd.to_numeric(
-        selected["points_per_game"], errors="coerce"
-    )
-    selected["chance_of_playing_next_round"] = pd.to_numeric(
-        selected["chance_of_playing_next_round"], errors="coerce"
-    )
-
-    selected = compute_base_points(selected)
-
-    future_fixtures = api.get_fixtures(client, event_id)
-    selected["next_match_difficulty"] = selected["team"].apply(
-        lambda team_id: get_team_fixture_difficulty(team_id, future_fixtures)
-    )
-
-    selected = apply_fdr_multiplier(selected)
-
-    selected = compute_expected_points_from_df(selected)
-
-    return selected
+    return _build_expected_points_dataframe(client, player_ids, event_id)
 
 
 def count_earned_points(client: Any, player_id: int, event: int) -> int:

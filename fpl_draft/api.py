@@ -1,17 +1,19 @@
 """Lightweight wrappers around FPL/Draft HTTP endpoints.
 
-These functions accept a `client` object with a `.get(url, **kwargs)` method
-that returns a `requests.Response`-like object with `raise_for_status()` and
-`json()` methods. They are intentionally thin so they can be unit-tested
-with small stubs.
+FPL endpoint wrappers accept a `client` object with a `.get(url, **kwargs)`
+method that returns a `requests.Response`-like object. The public prediction
+feed is fetched separately without FPL authorization.
 """
 
 from __future__ import annotations
 from typing import Any
 
+import requests
+
 
 DRAFT_API_URL = "https://draft.premierleague.com"
 FANTASY_API_URL = "https://fantasy.premierleague.com"
+PREDICTIONS_URL = "https://raw.githubusercontent.com/merczmisi/fpl_predict/main/predictions"
 
 
 def get_my_team(client: Any, entry_id: int) -> dict:
@@ -136,5 +138,13 @@ def get_fixtures(
     params = {"event": event_id} if event_id is not None else {"future": future}
 
     response = client.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_predictions(event_id: int) -> dict:
+    """Fetch the public prediction model output for an event."""
+    url = f"{PREDICTIONS_URL}/gw_{event_id}.json"
+    response = requests.get(url, timeout=15)
     response.raise_for_status()
     return response.json()
